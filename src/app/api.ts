@@ -1,5 +1,10 @@
+const browserDefaultApiBase =
+  typeof window !== "undefined"
+    ? `${window.location.origin.replace(/\/$/, "")}/api`
+    : "http://localhost:4000/api";
+
 export const API_BASE =
-  import.meta.env.VITE_API_BASE?.trim() || "http://localhost:4000/api";
+  import.meta.env.VITE_API_BASE?.trim() || browserDefaultApiBase;
 
 export type Role = "OWNER" | "WORKER" | "SUPPLIER";
 export type DocumentType = "RECEIPT" | "INVOICE" | "QUOTE";
@@ -271,10 +276,17 @@ export async function apiRequest<T>(
     (headers as Record<string, string>).Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error(
+      `Network error: API unreachable at ${API_BASE}. Configure VITE_API_BASE for production or make sure the backend is deployed and reachable.`,
+    );
+  }
 
   const isJson = response.headers.get("content-type")?.includes("application/json");
   const payload = isJson
