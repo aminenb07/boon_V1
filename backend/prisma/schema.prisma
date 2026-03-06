@@ -1,0 +1,205 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  phone        String   @unique
+  passwordHash String
+  fullName     String
+  defaultRole  Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roomsOwned          Room[]                @relation("RoomOwner")
+  memberships         RoomMember[]
+  workerLinks         WorkerSupplierLink[]  @relation("WorkerLinks")
+  supplierLinks       WorkerSupplierLink[]  @relation("SupplierLinks")
+  supplierProfile     SupplierStoreProfile?
+  workerDocuments     Document[]            @relation("WorkerDocuments")
+  documentsCreated    Document[]            @relation("CreatedDocuments")
+  documentsAsSupplier Document[]            @relation("SupplierDocuments")
+  workerScopeCaches   RoomWorkerScopeCache[]
+  supplierScopeCaches RoomSupplierScopeCache[]
+}
+
+model SupplierStoreProfile {
+  id         String   @id @default(uuid())
+  supplier   User     @relation(fields: [supplierId], references: [id])
+  supplierId String   @unique
+  logoUrl    String?
+  storeName  String
+  phone      String
+  address    String
+  ice        String?
+  rc         String?
+  footerNote String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  documents Document[]
+}
+
+model Room {
+  id                 String     @id @default(uuid())
+  name               String
+  roomCode           String     @unique
+  status             RoomStatus @default(ACTIVE)
+  owner              User       @relation("RoomOwner", fields: [ownerId], references: [id])
+  ownerId            String
+  lastActivityPreview String?
+  lastActivityAt      DateTime?
+  cachedTotalOwner    Float      @default(0)
+  cachedDocsCount     Int        @default(0)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  members            RoomMember[]
+  links              WorkerSupplierLink[]
+  documents          Document[]
+  workerScopeCache   RoomWorkerScopeCache[]
+  supplierScopeCache RoomSupplierScopeCache[]
+}
+
+model RoomMember {
+  id         String    @id @default(uuid())
+  room       Room      @relation(fields: [roomId], references: [id])
+  roomId     String
+  user       User      @relation(fields: [userId], references: [id])
+  userId     String
+  role       Role
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([roomId, userId])
+  @@index([roomId, role])
+  @@index([userId, lastSeenAt])
+}
+
+model WorkerSupplierLink {
+  id            String     @id @default(uuid())
+  room          Room       @relation(fields: [roomId], references: [id])
+  roomId        String
+  worker        User       @relation("WorkerLinks", fields: [workerId], references: [id])
+  workerId      String
+  supplier      User       @relation("SupplierLinks", fields: [supplierId], references: [id])
+  supplierId    String
+  status        LinkStatus @default(ACTIVE)
+  cachedTotal   Float      @default(0)
+  cachedDocsCount Int      @default(0)
+  lastActivityAt DateTime?
+  createdAt     DateTime   @default(now())
+
+  @@unique([roomId, workerId, supplierId])
+  @@index([roomId, workerId])
+  @@index([roomId, supplierId])
+}
+
+model RoomWorkerScopeCache {
+  id        String   @id @default(uuid())
+  room      Room     @relation(fields: [roomId], references: [id])
+  roomId    String
+  worker    User     @relation(fields: [workerId], references: [id])
+  workerId  String
+  total     Float    @default(0)
+  docsCount Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([roomId, workerId])
+  @@index([roomId])
+}
+
+model RoomSupplierScopeCache {
+  id         String   @id @default(uuid())
+  room       Room     @relation(fields: [roomId], references: [id])
+  roomId     String
+  supplier   User     @relation(fields: [supplierId], references: [id])
+  supplierId String
+  total      Float    @default(0)
+  docsCount  Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([roomId, supplierId])
+  @@index([roomId])
+}
+
+model Document {
+  id                  String               @id @default(uuid())
+  type                DocumentType
+  room                Room?                @relation(fields: [roomId], references: [id])
+  roomId              String?
+  worker              User?                @relation("WorkerDocuments", fields: [workerId], references: [id])
+  workerId            String?
+  supplier            User                 @relation("SupplierDocuments", fields: [supplierId], references: [id])
+  supplierId          String
+  createdBySupplier   User                 @relation("CreatedDocuments", fields: [createdBySupplierId], references: [id])
+  createdBySupplierId String
+  storeProfile        SupplierStoreProfile @relation(fields: [storeProfileId], references: [id])
+  storeProfileId      String
+
+  quickAmount Float?
+  category    String?
+  note        String?
+  currency    String   @default("MAD")
+  grandTotal  Float
+  isPersonal  Boolean  @default(false)
+  immutable   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  items       DocumentItem[]
+  attachments Attachment[]
+
+  @@index([roomId, createdAt])
+  @@index([supplierId, isPersonal, createdAt])
+}
+
+model DocumentItem {
+  id          String   @id @default(uuid())
+  document    Document @relation(fields: [documentId], references: [id])
+  documentId  String
+  productName String
+  qty         Float
+  unit        String?
+  unitPrice   Float
+  lineTotal   Float
+  position    Int
+}
+
+model Attachment {
+  id         String   @id @default(uuid())
+  document   Document @relation(fields: [documentId], references: [id])
+  documentId String
+  fileUrl    String
+  mimeType   String
+  createdAt  DateTime @default(now())
+}
+
+enum Role {
+  OWNER
+  WORKER
+  SUPPLIER
+}
+
+enum DocumentType {
+  RECEIPT
+  INVOICE
+  QUOTE
+}
+
+enum RoomStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum LinkStatus {
+  ACTIVE
+  DISABLED
+}

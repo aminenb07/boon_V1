@@ -1,0 +1,421 @@
+import { useEffect, useMemo, useState } from "react";
+import { Globe, Lock, LogOut, Moon, Sun, User } from "lucide-react";
+import type { AuthUser } from "../api";
+import type { SupplierProfile } from "../api";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+
+export type Language = "en" | "fr" | "ar";
+export type ThemeMode = "light" | "dark" | "system";
+
+type Texts = {
+  title: string;
+  subtitle: string;
+  profileCard: string;
+  languageCard: string;
+  languageLabel: string;
+  themeCard: string;
+  themeLabel: string;
+  securityCard: string;
+  fullName: string;
+  phone: string;
+  saveProfile: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+  updatePassword: string;
+  logout: string;
+  langEnglish: string;
+  langFrench: string;
+  langArabic: string;
+  themeLight: string;
+  themeDark: string;
+  themeSystem: string;
+  storeProfileCard: string;
+  storeName: string;
+  address: string;
+  ice: string;
+  rc: string;
+  footerNote: string;
+  saveStoreProfile: string;
+};
+
+type Props = {
+  user: AuthUser;
+  language: Language;
+  themeMode: ThemeMode;
+  texts: Texts;
+  isSavingProfile: boolean;
+  isSavingStoreProfile: boolean;
+  isChangingPassword: boolean;
+  notice: string | null;
+  error: string | null;
+  supplierProfile: SupplierProfile | null;
+  onLanguageChange: (language: Language) => void;
+  onThemeModeChange: (mode: ThemeMode) => void;
+  onSaveProfile: (payload: { fullName: string; phone: string }) => Promise<void>;
+  onSaveStoreProfile: (payload: {
+    storeName: string;
+    phone: string;
+    address: string;
+    ice?: string;
+    rc?: string;
+    footerNote?: string;
+    logoUrl?: string;
+  }) => Promise<void>;
+  onChangePassword: (payload: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) => Promise<void>;
+  onLogout: () => void;
+};
+
+export function Profile({
+  user,
+  language,
+  themeMode,
+  texts,
+  isSavingProfile,
+  isSavingStoreProfile,
+  isChangingPassword,
+  notice,
+  error,
+  supplierProfile,
+  onLanguageChange,
+  onThemeModeChange,
+  onSaveProfile,
+  onSaveStoreProfile,
+  onChangePassword,
+  onLogout,
+}: Props) {
+  const [fullName, setFullName] = useState(user.fullName);
+  const [phone, setPhone] = useState(user.phone);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [storeName, setStoreName] = useState("");
+  const [storePhone, setStorePhone] = useState("");
+  const [storeAddress, setStoreAddress] = useState("");
+  const [storeIce, setStoreIce] = useState("");
+  const [storeRc, setStoreRc] = useState("");
+  const [storeFooter, setStoreFooter] = useState("");
+  const [storeLogoUrl, setStoreLogoUrl] = useState("");
+
+  useEffect(() => {
+    setFullName(user.fullName);
+    setPhone(user.phone);
+  }, [user.fullName, user.phone]);
+
+  useEffect(() => {
+    setStoreName(supplierProfile?.storeName ?? "");
+    setStorePhone(supplierProfile?.phone ?? user.phone);
+    setStoreAddress(supplierProfile?.address ?? "");
+    setStoreIce(supplierProfile?.ice ?? "");
+    setStoreRc(supplierProfile?.rc ?? "");
+    setStoreFooter(supplierProfile?.footerNote ?? "");
+    setStoreLogoUrl(supplierProfile?.logoUrl ?? "");
+  }, [supplierProfile, user.phone]);
+
+  const canSubmitProfile = useMemo(
+    () => fullName.trim().length > 0 && phone.trim().length > 0,
+    [fullName, phone],
+  );
+
+  async function handleProfileSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!canSubmitProfile) return;
+    await onSaveProfile({ fullName: fullName.trim(), phone: phone.trim() });
+  }
+
+  async function handlePasswordSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!currentPassword || !newPassword || !confirmPassword) return;
+    await onChangePassword({
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  }
+
+  async function handleStoreProfileSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!storeName.trim() || !storePhone.trim() || !storeAddress.trim()) return;
+    await onSaveStoreProfile({
+      storeName: storeName.trim(),
+      phone: storePhone.trim(),
+      address: storeAddress.trim(),
+      ice: storeIce.trim() || undefined,
+      rc: storeRc.trim() || undefined,
+      footerNote: storeFooter.trim() || undefined,
+      logoUrl: storeLogoUrl.trim() || undefined,
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-6 pb-24">
+      <div>
+        <h2 className="text-2xl font-bold">{texts.title}</h2>
+        <p className="text-gray-600 mt-1">{texts.subtitle}</p>
+      </div>
+
+      <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-full bg-white/20 flex items-center justify-center">
+              <User className="h-7 w-7" />
+            </div>
+            <div>
+              <p className="text-lg font-bold">{user.fullName}</p>
+              <p className="text-sm opacity-90">{user.role}</p>
+              <p className="text-xs opacity-80">{user.phone}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{texts.profileCard}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-3" onSubmit={handleProfileSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="profile-full-name">{texts.fullName}</Label>
+              <Input
+                id="profile-full-name"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-phone">{texts.phone}</Label>
+              <Input
+                id="profile-phone"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={!canSubmitProfile || isSavingProfile}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              {isSavingProfile ? "..." : texts.saveProfile}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {user.role === "SUPPLIER" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{texts.storeProfileCard}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-3" onSubmit={handleStoreProfileSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="store-name">{texts.storeName}</Label>
+                <Input
+                  id="store-name"
+                  value={storeName}
+                  onChange={(event) => setStoreName(event.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-phone">{texts.phone}</Label>
+                <Input
+                  id="store-phone"
+                  value={storePhone}
+                  onChange={(event) => setStorePhone(event.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-address">{texts.address}</Label>
+                <Input
+                  id="store-address"
+                  value={storeAddress}
+                  onChange={(event) => setStoreAddress(event.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-ice">{texts.ice}</Label>
+                <Input
+                  id="store-ice"
+                  value={storeIce}
+                  onChange={(event) => setStoreIce(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-rc">{texts.rc}</Label>
+                <Input
+                  id="store-rc"
+                  value={storeRc}
+                  onChange={(event) => setStoreRc(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-footer">{texts.footerNote}</Label>
+                <Input
+                  id="store-footer"
+                  value={storeFooter}
+                  onChange={(event) => setStoreFooter(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="store-logo">Logo URL</Label>
+                <Input
+                  id="store-logo"
+                  value={storeLogoUrl}
+                  onChange={(event) => setStoreLogoUrl(event.target.value)}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                disabled={isSavingStoreProfile}
+              >
+                {isSavingStoreProfile ? "..." : texts.saveStoreProfile}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-blue-600" />
+            {texts.languageCard}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Label className="mb-2 block">{texts.languageLabel}</Label>
+          <Select value={language} onValueChange={(value) => onLanguageChange(value as Language)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">{texts.langEnglish}</SelectItem>
+              <SelectItem value="fr">{texts.langFrench}</SelectItem>
+              <SelectItem value="ar">{texts.langArabic}</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Moon className="h-5 w-5 text-blue-600" />
+            {texts.themeCard}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Label className="mb-2 block">{texts.themeLabel}</Label>
+          <Select value={themeMode} onValueChange={(value) => onThemeModeChange(value as ThemeMode)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="light">
+                <span className="inline-flex items-center gap-2">
+                  <Sun className="h-4 w-4" />
+                  {texts.themeLight}
+                </span>
+              </SelectItem>
+              <SelectItem value="dark">
+                <span className="inline-flex items-center gap-2">
+                  <Moon className="h-4 w-4" />
+                  {texts.themeDark}
+                </span>
+              </SelectItem>
+              <SelectItem value="system">{texts.themeSystem}</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5 text-blue-600" />
+            {texts.securityCard}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-3" onSubmit={handlePasswordSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="current-password">{texts.currentPassword}</Label>
+              <Input
+                id="current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">{texts.newPassword}</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">{texts.confirmPassword}</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={isChangingPassword}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              {isChangingPassword ? "..." : texts.updatePassword}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {notice && (
+        <p className="rounded-lg border border-green-200 bg-green-50 text-green-700 px-3 py-2 text-sm">
+          {notice}
+        </p>
+      )}
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
+          {error}
+        </p>
+      )}
+
+      <Button
+        variant="outline"
+        className="w-full h-12 text-red-600 border-red-200 hover:bg-red-50"
+        onClick={onLogout}
+      >
+        <LogOut className="mr-2 h-5 w-5" />
+        {texts.logout}
+      </Button>
+    </div>
+  );
+}
