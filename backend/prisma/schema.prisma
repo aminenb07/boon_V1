@@ -13,9 +13,12 @@ datasource db {
 model User {
   id           String   @id @default(uuid())
   phone        String   @unique
+  email        String?  @unique
   passwordHash String
   fullName     String
   defaultRole  Role
+  phoneVerifiedAt DateTime?
+  status       UserStatus @default(ACTIVE)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -29,6 +32,8 @@ model User {
   documentsAsSupplier Document[]            @relation("SupplierDocuments")
   workerScopeCaches   RoomWorkerScopeCache[]
   supplierScopeCaches RoomSupplierScopeCache[]
+  roomJoinRequests    RoomJoinRequest[]     @relation("WorkerJoinRequests")
+  phoneVerificationCodes PhoneVerificationCode[]
 }
 
 model SupplierStoreProfile {
@@ -67,6 +72,7 @@ model Room {
   documents          Document[]
   workerScopeCache   RoomWorkerScopeCache[]
   supplierScopeCache RoomSupplierScopeCache[]
+  joinRequests       RoomJoinRequest[]
 }
 
 model RoomMember {
@@ -182,6 +188,37 @@ model Attachment {
   createdAt  DateTime @default(now())
 }
 
+model RoomJoinRequest {
+  id         String            @id @default(uuid())
+  room       Room              @relation(fields: [roomId], references: [id])
+  roomId     String
+  worker     User              @relation("WorkerJoinRequests", fields: [workerId], references: [id])
+  workerId   String
+  status     JoinRequestStatus @default(PENDING)
+  requestedAt DateTime         @default(now())
+  decidedAt  DateTime?
+  decidedById String?
+
+  @@unique([roomId, workerId])
+  @@index([roomId, status])
+  @@index([workerId, status])
+}
+
+model PhoneVerificationCode {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  phone      String
+  codeHash   String
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([phone, expiresAt])
+}
+
 enum Role {
   OWNER
   WORKER
@@ -202,4 +239,15 @@ enum RoomStatus {
 enum LinkStatus {
   ACTIVE
   DISABLED
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum JoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REFUSED
 }

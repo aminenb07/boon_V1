@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Globe, Lock, LogOut, Moon, Sun, User } from "lucide-react";
-import type { AuthUser } from "../api";
-import type { SupplierProfile } from "../api";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import boonLogo from "../../assets/boon.png";
+import { Globe, Lock, LogOut, Moon, Store, Sun, User } from "lucide-react";
+import type { AuthUser, SupplierProfile } from "../api";
 import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 export type Language = "en" | "fr" | "ar";
 export type ThemeMode = "light" | "dark" | "system";
@@ -22,6 +28,10 @@ type Texts = {
   securityCard: string;
   fullName: string;
   phone: string;
+  email: string;
+  verification: string;
+  verified: string;
+  notVerified: string;
   saveProfile: string;
   currentPassword: string;
   newPassword: string;
@@ -56,7 +66,7 @@ type Props = {
   supplierProfile: SupplierProfile | null;
   onLanguageChange: (language: Language) => void;
   onThemeModeChange: (mode: ThemeMode) => void;
-  onSaveProfile: (payload: { fullName: string; phone: string }) => Promise<void>;
+  onSaveProfile: (payload: { fullName: string; email?: string | null }) => Promise<void>;
   onSaveStoreProfile: (payload: {
     storeName: string;
     phone: string;
@@ -93,7 +103,7 @@ export function Profile({
   onLogout,
 }: Props) {
   const [fullName, setFullName] = useState(user.fullName);
-  const [phone, setPhone] = useState(user.phone);
+  const [email, setEmail] = useState(user.email ?? "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -107,8 +117,8 @@ export function Profile({
 
   useEffect(() => {
     setFullName(user.fullName);
-    setPhone(user.phone);
-  }, [user.fullName, user.phone]);
+    setEmail(user.email ?? "");
+  }, [user.email, user.fullName]);
 
   useEffect(() => {
     setStoreName(supplierProfile?.storeName ?? "");
@@ -120,15 +130,14 @@ export function Profile({
     setStoreLogoUrl(supplierProfile?.logoUrl ?? "");
   }, [supplierProfile, user.phone]);
 
-  const canSubmitProfile = useMemo(
-    () => fullName.trim().length > 0 && phone.trim().length > 0,
-    [fullName, phone],
-  );
+  const canSubmitProfile = useMemo(() => fullName.trim().length > 0, [fullName]);
+  const verificationLabel = user.phoneVerifiedAt ? texts.verified : texts.notVerified;
+  const storeLogoPreview = storeLogoUrl || boonLogo;
 
   async function handleProfileSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmitProfile) return;
-    await onSaveProfile({ fullName: fullName.trim(), phone: phone.trim() });
+    await onSaveProfile({ fullName: fullName.trim(), email: email.trim() || null });
   }
 
   async function handlePasswordSubmit(event: React.FormEvent) {
@@ -162,27 +171,41 @@ export function Profile({
     <div className="flex flex-col gap-6 pb-24">
       <div>
         <h2 className="text-2xl font-bold">{texts.title}</h2>
-        <p className="text-gray-600 mt-1">{texts.subtitle}</p>
+        <p className="mt-1 text-muted-foreground">{texts.subtitle}</p>
       </div>
 
-      <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none">
+      <Card className="overflow-hidden border-0 bg-[linear-gradient(135deg,#f6c341,#f58a2a_58%,#d95a1f)] text-black shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
         <CardContent className="pt-6">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-white/20 flex items-center justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20">
               <User className="h-7 w-7" />
             </div>
             <div>
               <p className="text-lg font-bold">{user.fullName}</p>
-              <p className="text-sm opacity-90">{user.role}</p>
+              <p className="text-sm font-medium opacity-90">{user.role}</p>
               <p className="text-xs opacity-80">{user.phone}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      {notice && (
+        <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300">
+          {notice}
+        </p>
+      )}
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+          {error}
+        </p>
+      )}
+
+      <Card className="boon-surface border-0 shadow-none">
         <CardHeader>
-          <CardTitle>{texts.profileCard}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5 text-amber-500" />
+            {texts.profileCard}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form className="space-y-3" onSubmit={handleProfileSubmit}>
@@ -197,17 +220,36 @@ export function Profile({
             </div>
             <div className="space-y-2">
               <Label htmlFor="profile-phone">{texts.phone}</Label>
+              <Input id="profile-phone" value={user.phone} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-email">{texts.email}</Label>
               <Input
-                id="profile-phone"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                required
+                id="profile-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{texts.verification}</Label>
+              <div className="flex items-center justify-between rounded-2xl border border-border bg-muted px-3 py-3 text-sm">
+                <span>{verificationLabel}</span>
+                <span
+                  className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                    user.phoneVerifiedAt
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                  }`}
+                >
+                  {user.phoneVerifiedAt ? texts.verified : texts.notVerified}
+                </span>
+              </div>
             </div>
             <Button
               type="submit"
               disabled={!canSubmitProfile || isSavingProfile}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-primary text-primary-foreground hover:opacity-95"
             >
               {isSavingProfile ? "..." : texts.saveProfile}
             </Button>
@@ -216,12 +258,27 @@ export function Profile({
       </Card>
 
       {user.role === "SUPPLIER" && (
-        <Card>
+        <Card className="boon-surface border-0 shadow-none">
           <CardHeader>
-            <CardTitle>{texts.storeProfileCard}</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Store className="h-5 w-5 text-amber-500" />
+              {texts.storeProfileCard}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form className="space-y-3" onSubmit={handleStoreProfileSubmit}>
+              <div className="boon-subsurface flex items-center gap-4 p-3">
+                <img
+                  src={storeLogoPreview}
+                  alt={storeName || "BOON"}
+                  className="h-16 w-16 rounded-2xl border border-border bg-background object-cover p-1"
+                />
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">{storeName || texts.storeName}</p>
+                  <p>{storeAddress || texts.address}</p>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="store-name">{texts.storeName}</Label>
                 <Input
@@ -249,21 +306,23 @@ export function Profile({
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="store-ice">{texts.ice}</Label>
-                <Input
-                  id="store-ice"
-                  value={storeIce}
-                  onChange={(event) => setStoreIce(event.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="store-rc">{texts.rc}</Label>
-                <Input
-                  id="store-rc"
-                  value={storeRc}
-                  onChange={(event) => setStoreRc(event.target.value)}
-                />
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="store-ice">{texts.ice}</Label>
+                  <Input
+                    id="store-ice"
+                    value={storeIce}
+                    onChange={(event) => setStoreIce(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="store-rc">{texts.rc}</Label>
+                  <Input
+                    id="store-rc"
+                    value={storeRc}
+                    onChange={(event) => setStoreRc(event.target.value)}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="store-footer">{texts.footerNote}</Label>
@@ -283,7 +342,7 @@ export function Profile({
               </div>
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-primary text-primary-foreground hover:opacity-95"
                 disabled={isSavingStoreProfile}
               >
                 {isSavingStoreProfile ? "..." : texts.saveStoreProfile}
@@ -293,10 +352,10 @@ export function Profile({
         </Card>
       )}
 
-      <Card>
+      <Card className="boon-surface border-0 shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-blue-600" />
+            <Globe className="h-5 w-5 text-amber-500" />
             {texts.languageCard}
           </CardTitle>
         </CardHeader>
@@ -315,10 +374,10 @@ export function Profile({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="boon-surface border-0 shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Moon className="h-5 w-5 text-blue-600" />
+            <Moon className="h-5 w-5 text-amber-500" />
             {texts.themeCard}
           </CardTitle>
         </CardHeader>
@@ -347,10 +406,10 @@ export function Profile({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="boon-surface border-0 shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-blue-600" />
+            <Lock className="h-5 w-5 text-amber-500" />
             {texts.securityCard}
           </CardTitle>
         </CardHeader>
@@ -389,7 +448,7 @@ export function Profile({
             <Button
               type="submit"
               disabled={isChangingPassword}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-primary text-primary-foreground hover:opacity-95"
             >
               {isChangingPassword ? "..." : texts.updatePassword}
             </Button>
@@ -397,20 +456,9 @@ export function Profile({
         </CardContent>
       </Card>
 
-      {notice && (
-        <p className="rounded-lg border border-green-200 bg-green-50 text-green-700 px-3 py-2 text-sm">
-          {notice}
-        </p>
-      )}
-      {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
-          {error}
-        </p>
-      )}
-
       <Button
         variant="outline"
-        className="w-full h-12 text-red-600 border-red-200 hover:bg-red-50"
+        className="h-12 w-full border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/30"
         onClick={onLogout}
       >
         <LogOut className="mr-2 h-5 w-5" />

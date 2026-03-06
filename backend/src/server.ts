@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import {
   Prisma,
@@ -10,6 +12,8 @@ import {
   DocumentType,
   RoomStatus,
   LinkStatus,
+  JoinRequestStatus,
+  UserStatus,
 } from "@prisma/client";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
@@ -24,6 +28,7 @@ const prisma = new PrismaClient({ adapter });
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 4000);
+const NODE_ENV = process.env.NODE_ENV?.trim() || "development";
 const JWT_SECRET =
   process.env.JWT_SECRET?.trim() || crypto.randomBytes(48).toString("hex");
 const PUBLIC_API_BASE_URL = process.env.PUBLIC_API_BASE_URL;
@@ -34,11 +39,28 @@ const PASSWORD_MIN_LENGTH = 10;
 const AUTH_WINDOW_MS = 10 * 60 * 1000;
 const AUTH_MAX_ATTEMPTS = 40;
 const AUTH_BLOCK_MS = 15 * 60 * 1000;
+const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000;
+const MAX_VERIFICATION_ATTEMPTS = 5;
+const DOCUMENT_SHARE_TOKEN_TTL = "7d";
+const SMS_WEBHOOK_URL = process.env.SMS_WEBHOOK_URL?.trim();
+const SMS_WEBHOOK_TOKEN = process.env.SMS_WEBHOOK_TOKEN?.trim();
+const ALLOW_DEV_VERIFICATION_CODE =
+  NODE_ENV !== "production" &&
+  process.env.ALLOW_DEV_VERIFICATION_CODE?.trim() === "true";
+const DEFAULT_BOON_LOGO_PATH = path.resolve(__dirname, "../../public/boon.png");
 
 if (!process.env.JWT_SECRET?.trim()) {
   // eslint-disable-next-line no-console
   console.warn("JWT_SECRET not set. Using ephemeral key for this process.");
 }
+if (!SMS_WEBHOOK_URL && !ALLOW_DEV_VERIFICATION_CODE) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "SMS_WEBHOOK_URL is not configured and ALLOW_DEV_VERIFICATION_CODE is disabled. Public phone verification will not be deliverable.",
+  );
+}
+
+app.disable("x-powered-by");
 
 app.use(
   cors({
@@ -59,28 +81,42 @@ app.use((_req, res, next) => {
 });
 
 type JwtPayload = { userId: string; role: Role };
+type DocumentShareJwtPayload = {
+  documentId: string;
+  purpose: "document-share";
+};
 type AuthenticatedRequest = express.Request & { user?: JwtPayload };
 
 type RegisterBody = {
   phone?: string;
+  email?: string;
   password?: string;
   fullName?: string;
   role?: Role;
 };
 
 type LoginBody = {
-  phone?: string;
+  identifier?: string;
   password?: string;
 };
 
 type UpdateProfileBody = {
   fullName?: string;
-  phone?: string;
+  email?: string;
 };
 
 type ChangePasswordBody = {
   currentPassword?: string;
   newPassword?: string;
+};
+
+type VerifyPhoneBody = {
+  phone?: string;
+  code?: string;
+};
+
+type ResendCodeBody = {
+  phone?: string;
 };
 
 type CreateDocumentBody = {
@@ -146,6 +182,14 @@ type RoomStreamSubscriber = {
   user: JwtPayload;
 };
 
+type VerificationResponse = {
+  verificationRequired: true;
+  phone: string;
+  maskedPhone: string;
+  expiresInSeconds: number;
+  devCode?: string;
+};
+
 class ApiError extends Error {
   status: number;
 
@@ -160,6 +204,22 @@ const roomStreams = new Map<string, Set<RoomStreamSubscriber>>();
 
 function signToken(payload: JwtPayload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+}
+
+function signDocumentShareToken(documentId: string) {
+  return jwt.sign(
+    {
+      documentId,
+      purpose: "document-share",
+    } satisfies DocumentShareJwtPayload,
+    JWT_SECRET,
+    { expiresIn: DOCUMENT_SHARE_TOKEN_TTL },
+  );
+}
+
+function verifyDocumentShareToken(token: string, documentId: string) {
+  const decoded = jwt.verify(token, JWT_SECRET) as DocumentShareJwtPayload;
+  return decoded.purpose === "document-share" && decoded.documentId === documentId;
 }
 
 function getSingleParam(value: string | string[] | undefined): string | null {
@@ -183,9 +243,182 @@ function getOptionalNonEmptyText(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function getBearerToken(req: express.Request) {
+  const header = req.headers.authorization;
+  return header?.startsWith("Bearer ")
+    ? header.slice("Bearer ".length)
+    : undefined;
+}
+
 function toUpperText(value: string | undefined): string | undefined {
   if (!value) return undefined;
   return value.trim().toUpperCase();
+}
+
+function normalizePhone(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const compact = value.trim().replace(/[\s().-]+/g, "");
+  if (!compact) return null;
+  if (compact.startsWith("00")) {
+    return `+${compact.slice(2)}`;
+  }
+  if (/^0\d{9}$/.test(compact)) {
+    return `+212${compact.slice(1)}`;
+  }
+  if (/^212\d{9}$/.test(compact)) {
+    return `+${compact}`;
+  }
+  return compact;
+}
+
+function isValidPhone(value: string): boolean {
+  return /^\+?[1-9]\d{8,14}$/.test(value);
+}
+
+function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function maskPhone(phone: string): string {
+  if (phone.length <= 4) return phone;
+  return `${phone.slice(0, 4)}${"*".repeat(Math.max(phone.length - 6, 2))}${phone.slice(-2)}`;
+}
+
+function serializeUser(user: {
+  id: string;
+  phone: string;
+  email: string | null;
+  fullName: string;
+  defaultRole: Role;
+  phoneVerifiedAt: Date | null;
+  status: UserStatus;
+}) {
+  return {
+    id: user.id,
+    phone: user.phone,
+    email: user.email,
+    fullName: user.fullName,
+    role: user.defaultRole,
+    phoneVerifiedAt: user.phoneVerifiedAt?.toISOString() ?? null,
+    status: user.status,
+  };
+}
+
+function buildVerificationResponse(phone: string, devCode?: string): VerificationResponse {
+  return {
+    verificationRequired: true,
+    phone,
+    maskedPhone: maskPhone(phone),
+    expiresInSeconds: Math.floor(VERIFICATION_CODE_TTL_MS / 1000),
+    ...(devCode ? { devCode } : {}),
+  };
+}
+
+function generateNumericCode() {
+  return `${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function hashVerificationCode(code: string) {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+async function deliverVerificationCode(phone: string, code: string) {
+  if (SMS_WEBHOOK_URL) {
+    const response = await fetch(SMS_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(SMS_WEBHOOK_TOKEN ? { Authorization: `Bearer ${SMS_WEBHOOK_TOKEN}` } : {}),
+      },
+      body: JSON.stringify({
+        phone,
+        message: `BOON verification code: ${code}`,
+        code,
+      }),
+    });
+    if (!response.ok) {
+      throw new ApiError(502, "Verification delivery failed");
+    }
+    return;
+  }
+
+  // eslint-disable-next-line no-console
+  console.info(`[BOON verification] ${phone}: ${code}`);
+}
+
+async function issuePhoneVerificationCode(user: {
+  id: string;
+  phone: string;
+}): Promise<VerificationResponse> {
+  const code = generateNumericCode();
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
+
+  await prisma.phoneVerificationCode.updateMany({
+    where: {
+      userId: user.id,
+      consumedAt: null,
+    },
+    data: {
+      consumedAt: new Date(),
+    },
+  });
+
+  await prisma.phoneVerificationCode.create({
+    data: {
+      userId: user.id,
+      phone: user.phone,
+      codeHash: hashVerificationCode(code),
+      expiresAt,
+    },
+  });
+
+  await deliverVerificationCode(user.phone, code);
+  return buildVerificationResponse(user.phone, ALLOW_DEV_VERIFICATION_CODE ? code : undefined);
+}
+
+async function loadPdfLogoBuffer(logoUrl: string | null | undefined) {
+  if (logoUrl) {
+    if (logoUrl.startsWith("data:image/")) {
+      const base64 = logoUrl.split(",")[1];
+      if (base64) {
+        return Buffer.from(base64, "base64");
+      }
+    }
+
+    if (/^https?:\/\//i.test(logoUrl)) {
+      try {
+        const response = await fetch(logoUrl);
+        if (response.ok) {
+          return Buffer.from(await response.arrayBuffer());
+        }
+      } catch {
+        // Fall back to the default BOON logo.
+      }
+    }
+  }
+
+  try {
+    return await fs.readFile(DEFAULT_BOON_LOGO_PATH);
+  } catch {
+    return null;
+  }
+}
+
+async function getOpenVerificationCode(userId: string, phone: string) {
+  return prisma.phoneVerificationCode.findFirst({
+    where: {
+      userId,
+      phone,
+      consumedAt: null,
+    },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 function isRoomStatus(value: unknown): value is RoomStatus {
@@ -348,6 +581,23 @@ function isDocumentType(value: unknown): value is DocumentType {
   );
 }
 
+async function findUserByIdentifier(identifier: string) {
+  const normalizedPhone = normalizePhone(identifier);
+  const normalizedEmail = normalizeEmail(identifier);
+  if (!normalizedPhone && !normalizedEmail) {
+    return null;
+  }
+
+  return prisma.user.findFirst({
+    where: {
+      OR: [
+        ...(normalizedPhone ? [{ phone: normalizedPhone }] : []),
+        ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+      ],
+    },
+  });
+}
+
 async function getCurrentUser(req: AuthenticatedRequest) {
   if (!req.user) return null;
   return prisma.user.findUnique({ where: { id: req.user.userId } });
@@ -507,21 +757,18 @@ function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-function authMiddleware(
+async function authMiddleware(
   req: express.Request,
   res: express.Response,
   next: express.NextFunction,
 ) {
-  const header = req.headers.authorization;
   const allowQueryToken =
     /^\/api\/documents\/[^/]+\/pdf$/.test(req.path) ||
     /^\/api\/rooms\/[^/]+\/stream$/.test(req.path);
   const queryToken = allowQueryToken
     ? getOptionalNonEmptyText((req.query as Record<string, unknown>).token)
     : undefined;
-  const tokenFromHeader = header?.startsWith("Bearer ")
-    ? header.slice("Bearer ".length)
-    : undefined;
+  const tokenFromHeader = getBearerToken(req);
   const token = tokenFromHeader ?? queryToken;
 
   if (!token) {
@@ -529,6 +776,13 @@ function authMiddleware(
   }
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, status: true },
+    });
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      return res.status(401).json({ error: "Account is unavailable" });
+    }
     (req as AuthenticatedRequest).user = decoded;
     return next();
   } catch {
@@ -972,6 +1226,143 @@ type DocumentWithInclude = Prisma.DocumentGetPayload<{
   include: typeof documentInclude;
 }>;
 
+function formatMoney(value: number, currency: string) {
+  return new Intl.NumberFormat("fr-MA", {
+    style: "currency",
+    currency: currency || "MAD",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function buildDocumentShareText(doc: Pick<
+  DocumentWithInclude,
+  "id" | "type" | "category" | "grandTotal" | "currency" | "createdAt"
+> & {
+  storeProfile: Pick<DocumentWithInclude["storeProfile"], "storeName" | "phone">;
+}) {
+  const title = getOptionalNonEmptyText(doc.category) ?? doc.type;
+  return [
+    `${doc.storeProfile.storeName}`,
+    `BOON ${title}`,
+    `Total: ${formatMoney(Number(doc.grandTotal), doc.currency)}`,
+    `Date: ${doc.createdAt.toISOString().slice(0, 16).replace("T", " ")}`,
+    `Phone: ${doc.storeProfile.phone}`,
+  ].join("\n");
+}
+
+async function renderDocumentPdf(pdf: PDFKit.PDFDocument, doc: DocumentWithInclude) {
+  const pageWidth = pdf.page.width - 80;
+  const rightColumnX = 320;
+  const amountText = formatMoney(Number(doc.grandTotal), doc.currency);
+  const logoBuffer = await loadPdfLogoBuffer(doc.storeProfile.logoUrl);
+  const infoX = logoBuffer ? 124 : 56;
+
+  pdf
+    .roundedRect(40, 36, pageWidth, 110, 18)
+    .fillAndStroke("#f6efe3", "#eadbc1");
+
+  pdf.fillColor("#6b4f1d").fontSize(10).text("BOON", 56, 54);
+  if (logoBuffer) {
+    try {
+      pdf.image(logoBuffer, 56, 66, { fit: [52, 52] });
+    } catch {
+      // Ignore logo rendering failures and continue with text-only header.
+    }
+  }
+  pdf
+    .fillColor("#171717")
+    .fontSize(20)
+    .font("Helvetica-Bold")
+    .text(doc.storeProfile.storeName, infoX, 70);
+  pdf.font("Helvetica").fontSize(10).fillColor("#4b5563");
+  pdf.text(doc.storeProfile.address, infoX, 98, { width: 220 });
+  pdf.text(`Phone: ${doc.storeProfile.phone}`, infoX, 116);
+  if (doc.storeProfile.ice) pdf.text(`ICE: ${doc.storeProfile.ice}`, rightColumnX, 70);
+  if (doc.storeProfile.rc) pdf.text(`RC: ${doc.storeProfile.rc}`, rightColumnX, 86);
+  pdf.text(`Document: ${doc.type}`, rightColumnX, 102);
+  pdf.text(`Created: ${doc.createdAt.toLocaleString()}`, rightColumnX, 118);
+
+  pdf.fillColor("#111827").font("Helvetica-Bold").fontSize(12).text("Summary", 40, 168);
+  pdf
+    .roundedRect(40, 188, pageWidth, 56, 14)
+    .fillAndStroke("#111827", "#111827");
+  pdf.fillColor("#f8fafc").fontSize(10).font("Helvetica").text("Total amount", 56, 204);
+  pdf.font("Helvetica-Bold").fontSize(22).text(amountText, 56, 218);
+
+  let y = 272;
+  pdf.fillColor("#111827").font("Helvetica-Bold").fontSize(12).text("Items", 40, y);
+  y += 18;
+
+  pdf
+    .roundedRect(40, y, pageWidth, 28, 10)
+    .fillAndStroke("#f3f4f6", "#e5e7eb");
+  pdf.fillColor("#374151").fontSize(9).font("Helvetica-Bold");
+  pdf.text("Product", 54, y + 9, { width: 180 });
+  pdf.text("Qty", 240, y + 9, { width: 40, align: "right" });
+  pdf.text("Unit", 288, y + 9, { width: 48, align: "center" });
+  pdf.text("Unit Price", 344, y + 9, { width: 90, align: "right" });
+  pdf.text("Total", 442, y + 9, { width: 90, align: "right" });
+  y += 38;
+
+  if (doc.items.length > 0) {
+    for (const item of doc.items) {
+      pdf
+        .roundedRect(40, y - 4, pageWidth, 30, 10)
+        .stroke("#eceff3");
+      pdf.fillColor("#111827").font("Helvetica").fontSize(9);
+      pdf.text(item.productName, 54, y + 4, { width: 180 });
+      pdf.text(`${item.qty}`, 240, y + 4, { width: 40, align: "right" });
+      pdf.text(item.unit ?? "-", 288, y + 4, { width: 48, align: "center" });
+      pdf.text(formatMoney(Number(item.unitPrice), doc.currency), 344, y + 4, {
+        width: 90,
+        align: "right",
+      });
+      pdf.text(formatMoney(Number(item.lineTotal), doc.currency), 442, y + 4, {
+        width: 90,
+        align: "right",
+      });
+      y += 38;
+    }
+  } else {
+    pdf
+      .roundedRect(40, y - 4, pageWidth, 30, 10)
+      .stroke("#eceff3");
+    pdf.fillColor("#111827").font("Helvetica").fontSize(9);
+    pdf.text(getOptionalNonEmptyText(doc.category) ?? "Quick amount", 54, y + 4, {
+      width: 240,
+    });
+    pdf.text("1", 240, y + 4, { width: 40, align: "right" });
+    pdf.text("-", 288, y + 4, { width: 48, align: "center" });
+    pdf.text(amountText, 344, y + 4, { width: 90, align: "right" });
+    pdf.text(amountText, 442, y + 4, { width: 90, align: "right" });
+    y += 38;
+  }
+
+  if (doc.note) {
+    pdf.fillColor("#111827").font("Helvetica-Bold").fontSize(11).text("Note", 40, y + 12);
+    pdf.fillColor("#4b5563").font("Helvetica").fontSize(10).text(doc.note, 40, y + 30, {
+      width: pageWidth,
+    });
+    y += 72;
+  }
+
+  const footerY = Math.max(y + 10, 710);
+  pdf.moveTo(40, footerY).lineTo(555, footerY).strokeColor("#e5e7eb").stroke();
+  pdf.fillColor("#4b5563").font("Helvetica").fontSize(9).text(
+    doc.storeProfile.footerNote ||
+      "Generated with BOON for secure room-based invoicing.",
+    40,
+    footerY + 14,
+    { width: pageWidth, align: "center" },
+  );
+  pdf.text(
+    "Powered by BOON. Organised invoice visibility for construction teams.",
+    40,
+    footerY + 30,
+    { width: pageWidth, align: "center" },
+  );
+}
+
 async function createDocumentForSupplier(
   current: JwtPayload,
   body: CreateDocumentBody,
@@ -1129,7 +1520,8 @@ async function createDocumentForSupplier(
 // Auth
 app.post("/api/auth/register", authRateLimiter, async (req, res) => {
   const body = req.body as RegisterBody;
-  const phone = getOptionalNonEmptyText(body.phone);
+  const phone = normalizePhone(body.phone);
+  const email = normalizeEmail(body.email);
   const password = getOptionalNonEmptyText(body.password);
   const fullName = getOptionalNonEmptyText(body.fullName);
   const role = body.role;
@@ -1137,50 +1529,66 @@ app.post("/api/auth/register", authRateLimiter, async (req, res) => {
   if (!phone || !password || !fullName || !isRole(role)) {
     return res.status(400).json({ error: "Missing or invalid fields" });
   }
+  if (!isValidPhone(phone)) {
+    return res.status(400).json({ error: "Invalid phone format" });
+  }
+  if (email && !isValidEmail(email)) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
 
   const passwordError = passwordPolicyError(password);
   if (passwordError) {
     return res.status(400).json({ error: passwordError });
   }
 
-  const existing = await prisma.user.findUnique({ where: { phone } });
+  const existing = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { phone },
+        ...(email ? [{ email }] : []),
+      ],
+    },
+  });
   if (existing) {
-    return res.status(409).json({ error: "User already exists" });
+    return res.status(409).json({ error: "Phone or email already in use" });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
     data: {
       phone,
+      email,
       passwordHash,
       fullName,
       defaultRole: role,
+      status: UserStatus.ACTIVE,
     },
   });
 
-  const token = signToken({ userId: user.id, role: user.defaultRole });
-  return res.json({
-    token,
-    user: {
-      id: user.id,
-      phone: user.phone,
-      fullName: user.fullName,
-      role: user.defaultRole,
-    },
+  const verification = await issuePhoneVerificationCode({
+    id: user.id,
+    phone: user.phone,
+  });
+  return res.status(202).json({
+    user: serializeUser(user),
+    ...verification,
   });
 });
 
 app.post("/api/auth/login", authRateLimiter, async (req, res) => {
   const body = req.body as LoginBody;
-  const phone = getOptionalNonEmptyText(body.phone);
+  const identifier = getOptionalNonEmptyText(body.identifier);
   const password = getOptionalNonEmptyText(body.password);
-  if (!phone || !password) {
-    return res.status(400).json({ error: "Missing phone or password" });
+  if (!identifier || !password) {
+    return res.status(400).json({ error: "Missing identifier or password" });
   }
 
-  const user = await prisma.user.findUnique({ where: { phone } });
+  const user = await findUserByIdentifier(identifier);
   if (!user) {
     return res.status(401).json({ error: "Invalid credentials" });
+  }
+  if (user.status !== UserStatus.ACTIVE) {
+    return res.status(403).json({ error: "Account is disabled" });
   }
 
   const ok = await bcrypt.compare(password, user.passwordHash);
@@ -1188,27 +1596,116 @@ app.post("/api/auth/login", authRateLimiter, async (req, res) => {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
+  if (!user.phoneVerifiedAt) {
+    const verification = await issuePhoneVerificationCode({
+      id: user.id,
+      phone: user.phone,
+    });
+    return res.status(403).json({
+      error: "Phone verification required",
+      user: serializeUser(user),
+      ...verification,
+    });
+  }
+
   const token = signToken({ userId: user.id, role: user.defaultRole });
   return res.json({
     token,
-    user: {
-      id: user.id,
-      phone: user.phone,
-      fullName: user.fullName,
-      role: user.defaultRole,
+    user: serializeUser(user),
+  });
+});
+
+app.post("/api/auth/verify-phone", authRateLimiter, async (req, res) => {
+  const body = req.body as VerifyPhoneBody;
+  const phone = normalizePhone(body.phone);
+  const code = getOptionalNonEmptyText(body.code);
+
+  if (!phone || !code) {
+    return res.status(400).json({ error: "phone and code are required" });
+  }
+
+  const user = await prisma.user.findUnique({ where: { phone } });
+  if (!user) {
+    return res.status(404).json({ error: "Account not found" });
+  }
+  if (user.status !== UserStatus.ACTIVE) {
+    return res.status(403).json({ error: "Account is disabled" });
+  }
+
+  const record = await getOpenVerificationCode(user.id, phone);
+  if (!record) {
+    return res.status(400).json({ error: "Verification code not found" });
+  }
+  if (record.consumedAt) {
+    return res.status(400).json({ error: "Verification code already used" });
+  }
+  if (record.expiresAt.getTime() < Date.now()) {
+    await prisma.phoneVerificationCode.update({
+      where: { id: record.id },
+      data: { consumedAt: new Date() },
+    });
+    return res.status(400).json({ error: "Verification code expired" });
+  }
+  if (record.attempts >= MAX_VERIFICATION_ATTEMPTS) {
+    return res.status(429).json({ error: "Too many verification attempts" });
+  }
+
+  const matches = hashVerificationCode(code) === record.codeHash;
+  if (!matches) {
+    await prisma.phoneVerificationCode.update({
+      where: { id: record.id },
+      data: { attempts: { increment: 1 } },
+    });
+    return res.status(400).json({ error: "Invalid verification code" });
+  }
+
+  const now = new Date();
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      phoneVerifiedAt: now,
     },
   });
+  await prisma.phoneVerificationCode.update({
+    where: { id: record.id },
+    data: {
+      consumedAt: now,
+    },
+  });
+
+  const token = signToken({ userId: updatedUser.id, role: updatedUser.defaultRole });
+  return res.json({
+    token,
+    user: serializeUser(updatedUser),
+  });
+});
+
+app.post("/api/auth/resend-code", authRateLimiter, async (req, res) => {
+  const body = req.body as ResendCodeBody;
+  const phone = normalizePhone(body.phone);
+  if (!phone) {
+    return res.status(400).json({ error: "phone is required" });
+  }
+
+  const user = await prisma.user.findUnique({ where: { phone } });
+  if (!user) {
+    return res.status(404).json({ error: "Account not found" });
+  }
+  if (user.status !== UserStatus.ACTIVE) {
+    return res.status(403).json({ error: "Account is disabled" });
+  }
+
+  const verification = await issuePhoneVerificationCode({
+    id: user.id,
+    phone: user.phone,
+  });
+  return res.json(verification);
 });
 
 app.get("/api/me", authMiddleware, async (req, res) => {
   const user = await getCurrentUser(req as AuthenticatedRequest);
   if (!user) return res.status(404).json({ error: "User not found" });
-  return res.json({
-    id: user.id,
-    phone: user.phone,
-    fullName: user.fullName,
-    role: user.defaultRole,
-  });
+  return res.json(serializeUser(user));
 });
 
 app.put("/api/me/profile", authMiddleware, async (req, res) => {
@@ -1217,16 +1714,19 @@ app.put("/api/me/profile", authMiddleware, async (req, res) => {
 
   const body = req.body as UpdateProfileBody;
   const nextFullName = getOptionalNonEmptyText(body.fullName);
-  const nextPhone = getOptionalNonEmptyText(body.phone);
+  const nextEmail = normalizeEmail(body.email);
 
-  if (!nextFullName || !nextPhone) {
-    return res.status(400).json({ error: "fullName and phone are required" });
+  if (!nextFullName) {
+    return res.status(400).json({ error: "fullName is required" });
+  }
+  if (nextEmail && !isValidEmail(nextEmail)) {
+    return res.status(400).json({ error: "Invalid email format" });
   }
 
-  if (nextPhone !== current.phone) {
-    const exists = await prisma.user.findUnique({ where: { phone: nextPhone } });
+  if (nextEmail && nextEmail !== current.email) {
+    const exists = await prisma.user.findUnique({ where: { email: nextEmail } });
     if (exists && exists.id !== current.id) {
-      return res.status(409).json({ error: "Phone already in use" });
+      return res.status(409).json({ error: "Email already in use" });
     }
   }
 
@@ -1234,16 +1734,11 @@ app.put("/api/me/profile", authMiddleware, async (req, res) => {
     where: { id: current.id },
     data: {
       fullName: nextFullName,
-      phone: nextPhone,
+      email: nextEmail,
     },
   });
 
-  return res.json({
-    id: updated.id,
-    phone: updated.phone,
-    fullName: updated.fullName,
-    role: updated.defaultRole,
-  });
+  return res.json(serializeUser(updated));
 });
 
 app.put("/api/me/password", authMiddleware, async (req, res) => {
@@ -1489,6 +1984,45 @@ app.get("/api/rooms/:roomId/members", authMiddleware, async (req, res) => {
   return res.json(members);
 });
 
+app.get(
+  "/api/join-requests",
+  authMiddleware,
+  requireRole(Role.OWNER),
+  async (req, res) => {
+    const current = (req as AuthenticatedRequest).user;
+    if (!current) return res.status(401).json({ error: "Unauthorized" });
+
+    const requests = await prisma.roomJoinRequest.findMany({
+      where: {
+        status: JoinRequestStatus.PENDING,
+        room: {
+          ownerId: current.userId,
+        },
+      },
+      include: {
+        room: {
+          select: {
+            id: true,
+            name: true,
+            roomCode: true,
+            status: true,
+          },
+        },
+        worker: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { requestedAt: "desc" },
+    });
+
+    return res.json(requests);
+  },
+);
+
 app.post("/api/rooms/:roomId/read", authMiddleware, async (req, res) => {
   const current = (req as AuthenticatedRequest).user;
   if (!current) return res.status(401).json({ error: "Unauthorized" });
@@ -1536,23 +2070,163 @@ app.post(
       return res.status(403).json({ error: "Room is closed" });
     }
 
-    const member = await prisma.roomMember.upsert({
+    const membership = await prisma.roomMember.findUnique({
       where: {
         roomId_userId: {
           roomId: room.id,
           userId: current.id,
         },
       },
-      create: {
+    });
+    if (membership) {
+      return res.json({
         roomId: room.id,
-        userId: current.id,
-        role: Role.WORKER,
-        lastSeenAt: new Date(),
+        role: membership.role,
+        status: "accepted",
+      });
+    }
+
+    const existingRequest = await prisma.roomJoinRequest.findUnique({
+      where: {
+        roomId_workerId: {
+          roomId: room.id,
+          workerId: current.id,
+        },
       },
-      update: {},
     });
 
-    return res.json({ roomId: room.id, role: member.role });
+    const request = existingRequest
+      ? await prisma.roomJoinRequest.update({
+          where: { id: existingRequest.id },
+          data: {
+            status: JoinRequestStatus.PENDING,
+            requestedAt: new Date(),
+            decidedAt: null,
+            decidedById: null,
+          },
+        })
+      : await prisma.roomJoinRequest.create({
+          data: {
+            roomId: room.id,
+            workerId: current.id,
+            status: JoinRequestStatus.PENDING,
+          },
+        });
+
+    return res.status(202).json({
+      roomId: room.id,
+      requestId: request.id,
+      status: "pending",
+    });
+  },
+);
+
+app.post(
+  "/api/join-requests/:requestId/decision",
+  authMiddleware,
+  requireRole(Role.OWNER),
+  async (req, res) => {
+    const current = (req as AuthenticatedRequest).user;
+    if (!current) return res.status(401).json({ error: "Unauthorized" });
+
+    const requestId = getSingleParam(
+      (req.params as Record<string, string | string[] | undefined>).requestId,
+    );
+    const decision = getOptionalNonEmptyText(
+      (req.body as { decision?: string }).decision,
+    )?.toLowerCase();
+
+    if (!requestId || (decision !== "accept" && decision !== "refuse")) {
+      return res.status(400).json({ error: "Invalid request or decision" });
+    }
+
+    const request = await prisma.roomJoinRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        room: {
+          select: {
+            id: true,
+            ownerId: true,
+            status: true,
+            name: true,
+            roomCode: true,
+          },
+        },
+        worker: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: "Join request not found" });
+    }
+    if (request.room.ownerId !== current.userId) {
+      return res.status(403).json({ error: "Not allowed for this room" });
+    }
+    if (request.status !== JoinRequestStatus.PENDING) {
+      return res.status(400).json({ error: "Join request already processed" });
+    }
+
+    const now = new Date();
+    if (decision === "accept") {
+      if (request.room.status !== RoomStatus.ACTIVE) {
+        return res.status(403).json({ error: "Room is closed" });
+      }
+
+      await prisma.roomMember.upsert({
+        where: {
+          roomId_userId: {
+            roomId: request.roomId,
+            userId: request.workerId,
+          },
+        },
+        create: {
+          roomId: request.roomId,
+          userId: request.workerId,
+          role: Role.WORKER,
+          lastSeenAt: now,
+        },
+        update: {
+          role: Role.WORKER,
+        },
+      });
+    }
+
+    const updatedRequest = await prisma.roomJoinRequest.update({
+      where: { id: request.id },
+      data: {
+        status:
+          decision === "accept"
+            ? JoinRequestStatus.ACCEPTED
+            : JoinRequestStatus.REFUSED,
+        decidedAt: now,
+        decidedById: current.userId,
+      },
+      include: {
+        room: {
+          select: {
+            id: true,
+            name: true,
+            roomCode: true,
+            status: true,
+          },
+        },
+        worker: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    return res.json(updatedRequest);
   },
 );
 
@@ -1900,6 +2574,147 @@ app.get(
   },
 );
 
+app.delete(
+  "/api/rooms/:roomId/suppliers/:supplierId",
+  authMiddleware,
+  requireRole(Role.OWNER, Role.WORKER),
+  async (req, res) => {
+    const current = (req as AuthenticatedRequest).user;
+    if (!current) return res.status(401).json({ error: "Unauthorized" });
+
+    const roomId = getSingleParam(
+      (req.params as Record<string, string | string[] | undefined>).roomId,
+    );
+    const supplierId = getSingleParam(
+      (req.params as Record<string, string | string[] | undefined>).supplierId,
+    );
+    if (!roomId || !supplierId) {
+      return res.status(400).json({ error: "Invalid roomId or supplierId" });
+    }
+
+    const membership = await getMembership(roomId, current.userId);
+    if (!membership || (membership.role !== Role.OWNER && membership.role !== Role.WORKER)) {
+      return res.status(403).json({ error: "Not allowed for this room" });
+    }
+
+    const where: Prisma.WorkerSupplierLinkWhereInput = {
+      roomId,
+      supplierId,
+      status: LinkStatus.ACTIVE,
+      ...(membership.role === Role.WORKER ? { workerId: current.userId } : {}),
+    };
+
+    const activeLinks = await prisma.workerSupplierLink.findMany({
+      where,
+      select: { id: true },
+    });
+    if (activeLinks.length === 0) {
+      return res.status(404).json({ error: "Supplier link not found" });
+    }
+
+    await prisma.workerSupplierLink.updateMany({
+      where,
+      data: {
+        status: LinkStatus.DISABLED,
+      },
+    });
+
+    const remainingActiveLinks = await prisma.workerSupplierLink.count({
+      where: {
+        roomId,
+        supplierId,
+        status: LinkStatus.ACTIVE,
+      },
+    });
+    if (remainingActiveLinks === 0) {
+      await prisma.roomMember.deleteMany({
+        where: {
+          roomId,
+          userId: supplierId,
+          role: Role.SUPPLIER,
+        },
+      });
+    }
+
+    await refreshRoomCaches(roomId);
+    return res.status(204).send();
+  },
+);
+
+app.delete(
+  "/api/rooms/:roomId/members/:userId",
+  authMiddleware,
+  requireRole(Role.OWNER),
+  async (req, res) => {
+    const current = (req as AuthenticatedRequest).user;
+    if (!current) return res.status(401).json({ error: "Unauthorized" });
+
+    const roomId = getSingleParam(
+      (req.params as Record<string, string | string[] | undefined>).roomId,
+    );
+    const userId = getSingleParam(
+      (req.params as Record<string, string | string[] | undefined>).userId,
+    );
+    if (!roomId || !userId) {
+      return res.status(400).json({ error: "Invalid roomId or userId" });
+    }
+
+    const ownerMembership = await getMembership(roomId, current.userId);
+    if (!ownerMembership || ownerMembership.role !== Role.OWNER) {
+      return res.status(403).json({ error: "Only room owner can remove members" });
+    }
+    if (userId === current.userId) {
+      return res.status(400).json({ error: "Owner cannot remove themselves" });
+    }
+
+    const targetMembership = await getMembership(roomId, userId);
+    if (!targetMembership) {
+      return res.status(404).json({ error: "Member not found" });
+    }
+    if (targetMembership.role === Role.OWNER) {
+      return res.status(400).json({ error: "Cannot remove room owner" });
+    }
+
+    await prisma.roomMember.delete({
+      where: {
+        roomId_userId: {
+          roomId,
+          userId,
+        },
+      },
+    });
+
+    if (targetMembership.role === Role.WORKER) {
+      await prisma.workerSupplierLink.updateMany({
+        where: {
+          roomId,
+          workerId: userId,
+          status: LinkStatus.ACTIVE,
+        },
+        data: {
+          status: LinkStatus.DISABLED,
+        },
+      });
+    }
+
+    if (targetMembership.role === Role.SUPPLIER) {
+      await prisma.workerSupplierLink.updateMany({
+        where: {
+          roomId,
+          supplierId: userId,
+          status: LinkStatus.ACTIVE,
+        },
+        data: {
+          status: LinkStatus.DISABLED,
+        },
+      });
+    }
+
+    await refreshRoomCaches(roomId);
+    return res.status(204).send();
+  },
+);
+
 // Supplier profile
 app.get(
   "/api/supplier/profile",
@@ -1935,11 +2750,14 @@ app.put(
     };
 
     const storeName = getOptionalNonEmptyText(body.storeName);
-    const phone = getOptionalNonEmptyText(body.phone);
+    const phone = normalizePhone(body.phone);
     const address = getOptionalNonEmptyText(body.address);
 
     if (!storeName || !phone || !address) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+    if (!isValidPhone(phone)) {
+      return res.status(400).json({ error: "Invalid phone format" });
     }
 
     const createData: Prisma.SupplierStoreProfileUncheckedCreateInput = {
@@ -2247,6 +3065,44 @@ app.get("/api/documents/:id", authMiddleware, async (req, res) => {
   return res.json(doc);
 });
 
+app.delete(
+  "/api/documents/:id",
+  authMiddleware,
+  requireRole(Role.SUPPLIER),
+  async (req, res) => {
+    const current = (req as AuthenticatedRequest).user;
+    if (!current) return res.status(401).json({ error: "Unauthorized" });
+
+    const id = getSingleParam((req.params as Record<string, string | string[] | undefined>).id);
+    if (!id) return res.status(400).json({ error: "Invalid document id" });
+
+    const doc = await prisma.document.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        roomId: true,
+        supplierId: true,
+        isPersonal: true,
+      },
+    });
+
+    if (!doc) return res.status(404).json({ error: "Not found" });
+    if (doc.supplierId !== current.userId || !doc.isPersonal) {
+      return res.status(403).json({ error: "Only your personal documents can be deleted" });
+    }
+
+    await prisma.attachment.deleteMany({ where: { documentId: id } });
+    await prisma.documentItem.deleteMany({ where: { documentId: id } });
+    await prisma.document.delete({ where: { id } });
+
+    if (doc.roomId) {
+      await refreshRoomCaches(doc.roomId);
+    }
+
+    return res.status(204).send();
+  },
+);
+
 app.get("/api/documents/:id/share", authMiddleware, async (req, res) => {
   const current = (req as AuthenticatedRequest).user;
   if (!current) return res.status(401).json({ error: "Unauthorized" });
@@ -2272,10 +3128,15 @@ app.get("/api/documents/:id/share", authMiddleware, async (req, res) => {
   if (!allowed) return res.status(403).json({ error: "Forbidden" });
 
   const apiBase = PUBLIC_API_BASE_URL ?? `${req.protocol}://${req.get("host")}`;
-  const pdfUrl = `${apiBase}/api/documents/${doc.id}/pdf`;
-  const message = encodeURIComponent(
-    `BOON ${doc.type} | Total: ${doc.grandTotal} ${doc.currency}\n${pdfUrl}`,
-  );
+  const shareToken = signDocumentShareToken(doc.id);
+  const pdfUrl = `${apiBase}/api/public/documents/${doc.id}/pdf?shareToken=${encodeURIComponent(shareToken)}`;
+  const fullDoc = await prisma.document.findUnique({
+    where: { id },
+    include: documentInclude,
+  });
+  if (!fullDoc) return res.status(404).json({ error: "Not found" });
+
+  const message = encodeURIComponent(`${buildDocumentShareText(fullDoc)}\n${pdfUrl}`);
   const whatsappUrl = `https://wa.me/?text=${message}`;
 
   return res.json({
@@ -2306,9 +3167,11 @@ app.post("/api/documents/:id/export-pdf", authMiddleware, async (req, res) => {
   if (!allowed) return res.status(403).json({ error: "Forbidden" });
 
   const apiBase = PUBLIC_API_BASE_URL ?? `${req.protocol}://${req.get("host")}`;
+  const authToken = getBearerToken(req);
+  const suffix = authToken ? `?token=${encodeURIComponent(authToken)}` : "";
   return res.json({
     documentId: id,
-    pdfUrl: `${apiBase}/api/documents/${id}/pdf`,
+    pdfUrl: `${apiBase}/api/documents/${id}/pdf${suffix}`,
   });
 });
 
@@ -2337,9 +3200,11 @@ app.post(
     }
 
     const apiBase = PUBLIC_API_BASE_URL ?? `${req.protocol}://${req.get("host")}`;
+    const authToken = getBearerToken(req);
+    const suffix = authToken ? `?token=${encodeURIComponent(authToken)}` : "";
     return res.json({
       documentId: id,
-      pdfUrl: `${apiBase}/api/documents/${id}/pdf`,
+      pdfUrl: `${apiBase}/api/documents/${id}/pdf${suffix}`,
     });
   },
 );
@@ -2365,52 +3230,43 @@ app.get("/api/documents/:id/pdf", authMiddleware, async (req, res) => {
 
   const pdf = new PDFDocument({ size: "A4", margin: 40 });
   pdf.pipe(res);
+  await renderDocumentPdf(pdf, doc);
 
-  pdf.fontSize(18).text(doc.storeProfile.storeName);
-  pdf.fontSize(10).text(doc.storeProfile.address);
-  pdf.text(`Phone: ${doc.storeProfile.phone}`);
-  if (doc.storeProfile.ice) pdf.text(`ICE: ${doc.storeProfile.ice}`);
-  if (doc.storeProfile.rc) pdf.text(`RC: ${doc.storeProfile.rc}`);
-  pdf.moveDown();
+  pdf.end();
+});
 
-  pdf.fontSize(14).text(`${doc.type} ${doc.category ? `- ${doc.category}` : ""}`);
-  pdf.fontSize(10).text(`Created: ${doc.createdAt.toISOString()}`);
-  pdf.moveDown();
+app.get("/api/public/documents/:id/pdf", async (req, res) => {
+  const id = getSingleParam((req.params as Record<string, string | string[] | undefined>).id);
+  const shareToken = getOptionalNonEmptyText(
+    (req.query as Record<string, unknown>).shareToken,
+  );
 
-  if (doc.items.length > 0) {
-    pdf.fontSize(12).text("Items");
-    for (const item of doc.items) {
-      pdf
-        .fontSize(10)
-        .text(
-          `${item.productName} | ${item.qty} ${item.unit ?? ""} x ${item.unitPrice} = ${item.lineTotal}`,
-        );
+  if (!id || !shareToken) {
+    return res.status(400).json({ error: "Missing document id or share token" });
+  }
+
+  try {
+    const valid = verifyDocumentShareToken(shareToken, id);
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid share token" });
     }
-  } else if (doc.quickAmount != null) {
-    pdf.fontSize(12).text(`Quick amount: ${doc.quickAmount} ${doc.currency}`);
+  } catch {
+    return res.status(401).json({ error: "Invalid share token" });
   }
 
-  if (doc.note) {
-    pdf.moveDown();
-    pdf.fontSize(10).text(`Note: ${doc.note}`);
-  }
+  const doc = await prisma.document.findUnique({
+    where: { id },
+    include: documentInclude,
+  });
 
-  if (doc.attachments.length > 0) {
-    pdf.moveDown();
-    pdf.fontSize(10).text(`Attachments: ${doc.attachments.length}`);
-    for (const attachment of doc.attachments) {
-      pdf.fontSize(9).fillColor("#444").text(attachment.fileUrl);
-    }
-    pdf.fillColor("#000");
-  }
+  if (!doc) return res.status(404).json({ error: "Not found" });
 
-  pdf.moveDown();
-  pdf.fontSize(16).text(`TOTAL: ${doc.grandTotal} ${doc.currency}`, { align: "right" });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="boon-${doc.id}.pdf"`);
 
-  if (doc.storeProfile.footerNote) {
-    pdf.moveDown();
-    pdf.fontSize(10).text(doc.storeProfile.footerNote, { align: "center" });
-  }
+  const pdf = new PDFDocument({ size: "A4", margin: 40 });
+  pdf.pipe(res);
+  await renderDocumentPdf(pdf, doc);
 
   pdf.end();
 });

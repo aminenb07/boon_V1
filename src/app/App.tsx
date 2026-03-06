@@ -17,7 +17,7 @@ import type { Language, ThemeMode } from "./components/Profile";
 import { Reports } from "./components/Reports";
 import { RoomLive } from "./components/RoomLive";
 
-const AUTH_STORAGE_KEY = "boon.auth.v1";
+const AUTH_STORAGE_KEY = "boon.auth.v2";
 const LANGUAGE_STORAGE_KEY = "boon.language.v1";
 const THEME_STORAGE_KEY = "boon.theme.v1";
 
@@ -25,11 +25,10 @@ const COPY = {
   en: {
     appTitle: "BOON Construction System",
     loading: "Loading BOON...",
-    logout: "Logout",
     nav: {
       dashboard: "Home",
       rooms: "Rooms",
-      boons: "Boons",
+      boons: "Docs",
       reports: "Reports",
       profile: "Settings",
     },
@@ -38,8 +37,8 @@ const COPY = {
       createProject: "Open Rooms",
     },
     rooms: {
-      title: "Rooms Live Feed",
-      subtitle: "Real-time room boons like chat.",
+      title: "Rooms",
+      subtitle: "Chat-like room feed with strict role visibility.",
       roomLabel: "Select room",
       createRoom: "Create Room",
       joinRoom: "Join by Code",
@@ -54,19 +53,19 @@ const COPY = {
       category: "Category",
       note: "Note",
       send: "Send Boon",
-      linkSupplier: "Link supplier to me",
+      linkSupplier: "Link supplier",
       supplierSearch: "Search supplier by name or phone",
       noRooms: "No rooms found",
     },
     boons: {
       title: "Boon Center",
-      subtitle: "Personal + room boons, export and share.",
-      personalTitle: "Personal Boons",
-      roomTitle: "Room Boons",
+      subtitle: "Personal and room documents with export and sharing.",
+      personalTitle: "Personal Docs",
+      roomTitle: "Room Docs",
       amount: "Amount",
       category: "Category",
       note: "Note",
-      createPersonal: "Create Boon",
+      createPersonal: "Save Personal Boon",
       share: "Share WhatsApp",
       pdf: "Open PDF",
       room: "Room",
@@ -74,20 +73,24 @@ const COPY = {
     },
     profile: {
       title: "Profile & Settings",
-      subtitle: "Manage account, language, theme and security.",
+      subtitle: "Manage account, language, appearance, and security.",
       profileCard: "Profile",
       languageCard: "Language",
       languageLabel: "App language",
-      themeCard: "Theme",
-      themeLabel: "Appearance mode",
+      themeCard: "Appearance",
+      themeLabel: "Theme mode",
       securityCard: "Password",
       fullName: "Full name",
       phone: "Phone",
-      saveProfile: "Save Profile",
+      email: "Email",
+      verification: "Phone verification",
+      verified: "Verified",
+      notVerified: "Not verified",
+      saveProfile: "Save profile",
       currentPassword: "Current password",
       newPassword: "New password",
-      confirmPassword: "Confirm new password",
-      updatePassword: "Update Password",
+      confirmPassword: "Confirm password",
+      updatePassword: "Update password",
       logout: "Logout",
       langEnglish: "English",
       langFrench: "French",
@@ -101,23 +104,22 @@ const COPY = {
       ice: "ICE",
       rc: "RC",
       footerNote: "Footer note",
-      saveStoreProfile: "Save Store Profile",
+      saveStoreProfile: "Save store profile",
     },
     messages: {
       profileSaved: "Profile updated successfully.",
       passwordUpdated: "Password updated successfully.",
-      passwordMismatch: "New password confirmation does not match.",
+      passwordMismatch: "Password confirmation does not match.",
       storeProfileSaved: "Store profile saved successfully.",
     },
   },
   fr: {
-    appTitle: "Systeme BOON Construction",
+    appTitle: "BOON Construction",
     loading: "Chargement BOON...",
-    logout: "Deconnexion",
     nav: {
       dashboard: "Accueil",
       rooms: "Rooms",
-      boons: "Boons",
+      boons: "Docs",
       reports: "Rapports",
       profile: "Parametres",
     },
@@ -126,35 +128,35 @@ const COPY = {
       createProject: "Ouvrir Rooms",
     },
     rooms: {
-      title: "Flux Rooms Temps Reel",
-      subtitle: "Boons temps reel style chat.",
-      roomLabel: "Selectionner room",
+      title: "Rooms",
+      subtitle: "Flux style chat avec visibilite par role.",
+      roomLabel: "Choisir room",
       createRoom: "Creer Room",
-      joinRoom: "Rejoindre par Code",
+      joinRoom: "Rejoindre par code",
       roomCode: "Code room",
       roomName: "Nom room",
       loadError: "Echec chargement room",
       members: "Membres room",
-      live: "Connecte en direct",
+      live: "Connecte",
       offline: "Connexion...",
-      noMessages: "Aucun boon dans cette room.",
+      noMessages: "Aucun document dans cette room.",
       amount: "Montant",
       category: "Categorie",
       note: "Note",
       send: "Envoyer Boon",
-      linkSupplier: "Lier supplier a moi",
+      linkSupplier: "Lier supplier",
       supplierSearch: "Chercher supplier",
       noRooms: "Aucune room",
     },
     boons: {
-      title: "Centre Boons",
-      subtitle: "Boons personnels + room, export et partage.",
-      personalTitle: "Boons Personnels",
-      roomTitle: "Boons Room",
+      title: "Centre BOON",
+      subtitle: "Documents personnels et room avec partage et export.",
+      personalTitle: "Docs personnels",
+      roomTitle: "Docs room",
       amount: "Montant",
       category: "Categorie",
       note: "Note",
-      createPersonal: "Creer Boon",
+      createPersonal: "Enregistrer document personnel",
       share: "Partager WhatsApp",
       pdf: "Ouvrir PDF",
       room: "Room",
@@ -162,15 +164,19 @@ const COPY = {
     },
     profile: {
       title: "Profil et Parametres",
-      subtitle: "Gerer compte, langue, theme et securite.",
+      subtitle: "Compte, langue, apparence et securite.",
       profileCard: "Profil",
       languageCard: "Langue",
-      languageLabel: "Langue app",
-      themeCard: "Theme",
-      themeLabel: "Mode apparence",
+      languageLabel: "Langue de l'app",
+      themeCard: "Apparence",
+      themeLabel: "Mode theme",
       securityCard: "Mot de passe",
       fullName: "Nom complet",
       phone: "Telephone",
+      email: "Email",
+      verification: "Verification telephone",
+      verified: "Verifie",
+      notVerified: "Non verifie",
       saveProfile: "Enregistrer profil",
       currentPassword: "Mot de passe actuel",
       newPassword: "Nouveau mot de passe",
@@ -183,107 +189,110 @@ const COPY = {
       themeLight: "Clair",
       themeDark: "Sombre",
       themeSystem: "Systeme",
-      storeProfileCard: "Profil Store Supplier",
-      storeName: "Nom store",
+      storeProfileCard: "Profil magasin supplier",
+      storeName: "Nom magasin",
       address: "Adresse",
       ice: "ICE",
       rc: "RC",
       footerNote: "Note footer",
-      saveStoreProfile: "Enregistrer Store Profile",
+      saveStoreProfile: "Enregistrer profil magasin",
     },
     messages: {
       profileSaved: "Profil mis a jour.",
       passwordUpdated: "Mot de passe mis a jour.",
-      passwordMismatch: "Confirmation mot de passe non valide.",
-      storeProfileSaved: "Store profile enregistre.",
+      passwordMismatch: "Confirmation mot de passe invalide.",
+      storeProfileSaved: "Profil magasin enregistre.",
     },
   },
   ar: {
-    appTitle: "نظام BOON للبناء",
-    loading: "جاري تحميل BOON...",
-    logout: "تسجيل الخروج",
+    appTitle: "???? BOON ??????",
+    loading: "??? ????? BOON...",
     nav: {
-      dashboard: "الرئيسية",
-      rooms: "الغرف",
-      boons: "البونات",
-      reports: "التقارير",
-      profile: "الإعدادات",
+      dashboard: "????????",
+      rooms: "?????",
+      boons: "???????",
+      reports: "????????",
+      profile: "?????????",
     },
     dashboard: {
-      addExpense: "إرسال بون",
-      createProject: "فتح الغرف",
+      addExpense: "????? ???",
+      createProject: "??? ?????",
     },
     rooms: {
-      title: "محادثة الغرف المباشرة",
-      subtitle: "بونات مباشرة مثل واتساب.",
-      roomLabel: "اختر الغرفة",
-      createRoom: "إنشاء غرفة",
-      joinRoom: "الانضمام بالكود",
-      roomCode: "كود الغرفة",
-      roomName: "اسم الغرفة",
-      loadError: "فشل تحميل بيانات الغرفة",
-      members: "أعضاء الغرفة",
-      live: "اتصال مباشر",
-      offline: "جاري الاتصال...",
-      noMessages: "لا توجد بونات بعد.",
-      amount: "المبلغ",
-      category: "الفئة",
-      note: "ملاحظة",
-      send: "إرسال بون",
-      linkSupplier: "ربط المورد",
-      supplierSearch: "ابحث عن المورد",
-      noRooms: "لا توجد غرف",
+      title: "?????",
+      subtitle: "???? ???? ?????? ?? ??????? ????? ??? ?????.",
+      roomLabel: "???? ??????",
+      createRoom: "????? ????",
+      joinRoom: "???????? ??????",
+      roomCode: "??? ??????",
+      roomName: "??? ??????",
+      loadError: "??? ????? ?????? ??????",
+      members: "????? ??????",
+      live: "???? ??????",
+      offline: "??? ???????...",
+      noMessages: "?? ???? ????? ??? ???? ??? ??????.",
+      amount: "??????",
+      category: "?????",
+      note: "??????",
+      send: "????? ?????",
+      linkSupplier: "??? ??????",
+      supplierSearch: "???? ?? ?????? ?????? ?? ??????",
+      noRooms: "?? ???? ???",
     },
     boons: {
-      title: "مركز البونات",
-      subtitle: "بونات شخصية وبونات الغرفة مع التصدير والمشاركة.",
-      personalTitle: "البونات الشخصية",
-      roomTitle: "بونات الغرفة",
-      amount: "المبلغ",
-      category: "الفئة",
-      note: "ملاحظة",
-      createPersonal: "إنشاء بون",
-      share: "مشاركة واتساب",
-      pdf: "فتح PDF",
-      room: "الغرفة",
-      noData: "لا توجد بيانات",
+      title: "???? ???????",
+      subtitle: "????? ????? ?????? ????? ?? ??????? ?????????.",
+      personalTitle: "??????? ???????",
+      roomTitle: "????? ?????",
+      amount: "??????",
+      category: "?????",
+      note: "??????",
+      createPersonal: "??? ??? ????",
+      share: "?????? ??????",
+      pdf: "??? PDF",
+      room: "??????",
+      noData: "?? ???? ??????",
     },
     profile: {
-      title: "الملف والإعدادات",
-      subtitle: "إدارة الحساب واللغة والمظهر والأمان.",
-      profileCard: "الملف",
-      languageCard: "اللغة",
-      languageLabel: "لغة التطبيق",
-      themeCard: "المظهر",
-      themeLabel: "وضع العرض",
-      securityCard: "كلمة المرور",
-      fullName: "الاسم الكامل",
-      phone: "الهاتف",
-      saveProfile: "حفظ الملف",
-      currentPassword: "كلمة المرور الحالية",
-      newPassword: "كلمة المرور الجديدة",
-      confirmPassword: "تأكيد كلمة المرور",
-      updatePassword: "تحديث كلمة المرور",
-      logout: "تسجيل الخروج",
-      langEnglish: "الإنجليزية",
-      langFrench: "الفرنسية",
-      langArabic: "العربية",
-      themeLight: "فاتح",
-      themeDark: "داكن",
-      themeSystem: "حسب الجهاز",
-      storeProfileCard: "ملف متجر المورد",
-      storeName: "اسم المتجر",
-      address: "العنوان",
+      title: "????? ??????????",
+      subtitle: "????? ?????? ?????? ??????? ???????.",
+      profileCard: "?????",
+      languageCard: "?????",
+      languageLabel: "??? ???????",
+      themeCard: "??????",
+      themeLabel: "??? ?????",
+      securityCard: "???? ??????",
+      fullName: "????? ??????",
+      phone: "??????",
+      email: "?????? ??????????",
+      verification: "????? ??????",
+      verified: "?? ??????",
+      notVerified: "??? ?????",
+      saveProfile: "??? ?????",
+      currentPassword: "???? ?????? ???????",
+      newPassword: "???? ?????? ???????",
+      confirmPassword: "????? ???? ??????",
+      updatePassword: "????? ???? ??????",
+      logout: "????? ??????",
+      langEnglish: "??????????",
+      langFrench: "????????",
+      langArabic: "???????",
+      themeLight: "????",
+      themeDark: "????",
+      themeSystem: "??? ??????",
+      storeProfileCard: "??? ???? ??????",
+      storeName: "??? ??????",
+      address: "???????",
       ice: "ICE",
       rc: "RC",
-      footerNote: "ملاحظة التذييل",
-      saveStoreProfile: "حفظ ملف المتجر",
+      footerNote: "?????? ???????",
+      saveStoreProfile: "??? ??? ??????",
     },
     messages: {
-      profileSaved: "تم تحديث الملف بنجاح.",
-      passwordUpdated: "تم تحديث كلمة المرور بنجاح.",
-      passwordMismatch: "تأكيد كلمة المرور غير مطابق.",
-      storeProfileSaved: "تم حفظ ملف المتجر بنجاح.",
+      profileSaved: "?? ????? ????? ?????.",
+      passwordUpdated: "?? ????? ???? ?????? ?????.",
+      passwordMismatch: "????? ???? ?????? ??? ?????.",
+      storeProfileSaved: "?? ??? ??? ?????? ?????.",
     },
   },
 } as const;
@@ -379,6 +388,7 @@ export default function App() {
     const applyTheme = () => {
       const resolved = resolveTheme(themeMode);
       root.classList.toggle("dark", resolved === "dark");
+      root.style.colorScheme = resolved;
     };
 
     applyTheme();
@@ -439,7 +449,7 @@ export default function App() {
     setSupplierProfile(null);
   }
 
-  async function handleSaveProfile(payload: { fullName: string; phone: string }) {
+  async function handleSaveProfile(payload: { fullName: string; email?: string | null }) {
     if (!auth) return;
     setError(null);
     setNotice(null);
@@ -511,104 +521,110 @@ export default function App() {
 
   if (booting) {
     return (
-      <div className="min-h-screen bg-[#0f1012] text-white grid place-items-center">
-        <p className="text-sm text-white/75">{copy.loading}</p>
+      <div className="min-h-screen bg-background text-foreground grid place-items-center">
+        <p className="text-sm text-muted-foreground">{copy.loading}</p>
       </div>
     );
   }
 
   if (!auth) {
-    return <AuthGate onAuthenticated={onAuthenticated} />;
+    return <AuthGate language={language} onAuthenticated={onAuthenticated} />;
   }
 
+  const verificationLabel = auth.user.phoneVerifiedAt
+    ? copy.profile.verified
+    : copy.profile.notVerified;
+
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0f1115] dark:text-gray-100 transition-colors">
-      <div className="mx-auto max-w-lg px-4 pt-5 pb-28">
-        <header className="mb-5 rounded-2xl border border-white/10 bg-gradient-to-br from-[#f6c341] via-[#f58a2a] to-[#e3561e] p-4 text-black shadow-sm">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.12),_transparent_28%),linear-gradient(180deg,_var(--background),color-mix(in_oklab,_var(--background)_88%,black))] text-foreground transition-colors">
+      <div className="mx-auto max-w-6xl px-4 pt-5 pb-28">
+        <header className="mb-5 rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,#f6c341,#f58a2a_52%,#db5d21)] p-4 text-black shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
           <p className="text-xs font-bold uppercase tracking-[0.2em]">BOON</p>
           <h1 className="mt-1 text-xl font-black leading-tight">{copy.appTitle}</h1>
-          <p className="mt-1 text-sm font-medium">
-            {auth.user.fullName} ({auth.user.role})
-          </p>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="mt-3 rounded-lg border border-black/30 px-3 py-1.5 text-xs font-semibold hover:bg-black/5"
-          >
-            {copy.logout}
-          </button>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium">
+            <span>{auth.user.fullName}</span>
+            <span className="rounded-full bg-black/10 px-2 py-1 text-xs">{auth.user.role}</span>
+            <span className="rounded-full bg-black/10 px-2 py-1 text-xs">{auth.user.phone}</span>
+            <span className="rounded-full bg-black/10 px-2 py-1 text-xs">{verificationLabel}</span>
+          </div>
         </header>
 
         {activeTab !== "profile" && notice && (
-          <p className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+          <p className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300">
             {notice}
           </p>
         )}
         {activeTab !== "profile" && error && (
-          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </p>
         )}
 
-        {activeTab === "dashboard" && (
-          <Dashboard
-            onAddExpense={() => setActiveTab("boons")}
-            onCreateProject={() => setActiveTab("rooms")}
-            canAddExpense
-            canCreateProject
-            addExpenseLabel={copy.dashboard.addExpense}
-            createProjectLabel={copy.dashboard.createProject}
-          />
-        )}
+        <div className="mx-auto max-w-4xl">
+          {activeTab === "dashboard" && (
+            <Dashboard
+              onAddExpense={() => setActiveTab(role === "OWNER" ? "rooms" : "boons")}
+              onCreateProject={() => setActiveTab("rooms")}
+              canAddExpense
+              canCreateProject
+              addExpenseLabel={copy.dashboard.addExpense}
+              createProjectLabel={copy.dashboard.createProject}
+            />
+          )}
 
-        {activeTab === "rooms" && (
-          <RoomLive
-            token={auth.token}
-            userId={auth.user.id}
-            role={auth.user.role}
-            labels={copy.rooms}
-          />
-        )}
+          {activeTab === "rooms" && (
+            <RoomLive
+              token={auth.token}
+              userId={auth.user.id}
+              role={auth.user.role}
+              language={language}
+              labels={copy.rooms}
+            />
+          )}
 
-        {activeTab === "boons" && (
-          <BoonCenter
-            token={auth.token}
-            role={auth.user.role}
-            userId={auth.user.id}
-            labels={copy.boons}
-          />
-        )}
+          {activeTab === "boons" && (
+            <BoonCenter
+              token={auth.token}
+              role={auth.user.role}
+              userId={auth.user.id}
+              language={language}
+              labels={copy.boons}
+            />
+          )}
 
-        {activeTab === "reports" && <Reports />}
+          {activeTab === "reports" && (
+            <Reports token={auth.token} language={language} />
+          )}
 
-        {activeTab === "profile" && (
-          <Profile
-            user={auth.user}
-            language={language}
-            themeMode={themeMode}
-            texts={copy.profile}
-            notice={notice}
-            error={error}
-            isSavingProfile={isSavingProfile}
-            isSavingStoreProfile={isSavingStoreProfile}
-            isChangingPassword={isChangingPassword}
-            supplierProfile={supplierProfile}
-            onLanguageChange={(nextLanguage) => {
-              setLanguage(nextLanguage);
-              setNotice(null);
-              setError(null);
-            }}
-            onThemeModeChange={(nextMode) => {
-              setThemeMode(nextMode);
-              setNotice(null);
-              setError(null);
-            }}
-            onSaveProfile={handleSaveProfile}
-            onSaveStoreProfile={handleSaveStoreProfile}
-            onChangePassword={handleChangePassword}
-            onLogout={onLogout}
-          />
-        )}
+          {activeTab === "profile" && (
+            <Profile
+              user={auth.user}
+              language={language}
+              themeMode={themeMode}
+              texts={copy.profile}
+              notice={notice}
+              error={error}
+              isSavingProfile={isSavingProfile}
+              isSavingStoreProfile={isSavingStoreProfile}
+              isChangingPassword={isChangingPassword}
+              supplierProfile={supplierProfile}
+              onLanguageChange={(nextLanguage) => {
+                setLanguage(nextLanguage);
+                setNotice(null);
+                setError(null);
+              }}
+              onThemeModeChange={(nextMode) => {
+                setThemeMode(nextMode);
+                setNotice(null);
+                setError(null);
+              }}
+              onSaveProfile={handleSaveProfile}
+              onSaveStoreProfile={handleSaveStoreProfile}
+              onChangePassword={handleChangePassword}
+              onLogout={onLogout}
+            />
+          )}
+        </div>
       </div>
 
       <BottomNav

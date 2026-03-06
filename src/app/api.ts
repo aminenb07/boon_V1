@@ -4,17 +4,59 @@ export const API_BASE =
 export type Role = "OWNER" | "WORKER" | "SUPPLIER";
 export type DocumentType = "RECEIPT" | "INVOICE" | "QUOTE";
 export type RoomStatus = "ACTIVE" | "CLOSED";
+export type UserStatus = "ACTIVE" | "DISABLED";
+export type JoinRequestStatus = "PENDING" | "ACCEPTED" | "REFUSED";
 
 export type AuthUser = {
   id: string;
   phone: string;
+  email: string | null;
   fullName: string;
   role: Role;
+  phoneVerifiedAt: string | null;
+  status: UserStatus;
 };
 
 export type AuthResponse = {
   token: string;
   user: AuthUser;
+};
+
+export type VerificationResponse = {
+  verificationRequired: true;
+  phone: string;
+  maskedPhone: string;
+  expiresInSeconds: number;
+  devCode?: string;
+  user?: AuthUser;
+};
+
+export type JoinRoomResponse = {
+  roomId: string;
+  requestId?: string;
+  role?: Role;
+  status: "pending" | "accepted";
+};
+
+export type RoomJoinRequest = {
+  id: string;
+  roomId: string;
+  workerId: string;
+  status: JoinRequestStatus;
+  requestedAt: string;
+  decidedAt: string | null;
+  decidedById: string | null;
+  room: {
+    id: string;
+    name: string;
+    roomCode: string;
+    status: RoomStatus;
+  };
+  worker: {
+    id: string;
+    fullName: string;
+    phone: string;
+  };
 };
 
 export type RoomSummary = {
@@ -211,6 +253,10 @@ export type AnalyticsOverview = {
   }>;
 };
 
+type ApiErrorPayload = Record<string, unknown> & {
+  error?: string;
+};
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
@@ -230,22 +276,24 @@ export async function apiRequest<T>(
     headers,
   });
 
+  const isJson = response.headers.get("content-type")?.includes("application/json");
+  const payload = isJson
+    ? ((await response.json()) as ApiErrorPayload)
+    : null;
+
   if (!response.ok) {
-    let message = `Request failed (${response.status})`;
-    try {
-      const body = (await response.json()) as { error?: string };
-      if (body.error) message = body.error;
-    } catch {
-      // ignore invalid json
-    }
-    throw new Error(message);
+    const error = new Error(
+      payload?.error || `Request failed (${response.status})`,
+    ) as Error & { payload?: ApiErrorPayload };
+    error.payload = payload || undefined;
+    throw error;
   }
 
   if (response.status === 204) {
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  return payload as T;
 }
 
 export function getDocumentPdfUrl(documentId: string, token: string) {
@@ -260,11 +308,12 @@ export function getRoomStreamUrl(roomId: string, token: string) {
 
 export async function register(payload: {
   phone: string;
+  email?: string;
   password: string;
   fullName: string;
   role: Role;
 }) {
-  return apiRequest<AuthResponse>(
+  return apiRequest<VerificationResponse & { user: AuthUser }>(
     "/auth/register",
     {
       method: "POST",
@@ -274,9 +323,31 @@ export async function register(payload: {
   );
 }
 
-export async function login(payload: { phone: string; password: string }) {
+export async function login(payload: { identifier: string; password: string }) {
   return apiRequest<AuthResponse>(
     "/auth/login",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    null,
+  );
+}
+
+export async function verifyPhone(payload: { phone: string; code: string }) {
+  return apiRequest<AuthResponse>(
+    "/auth/verify-phone",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    null,
+  );
+}
+
+export async function resendVerificationCode(payload: { phone: string }) {
+  return apiRequest<VerificationResponse>(
+    "/auth/resend-code",
     {
       method: "POST",
       body: JSON.stringify(payload),
@@ -291,7 +362,7 @@ export async function getMe(token: string) {
 
 export async function updateMe(
   token: string,
-  payload: { fullName: string; phone: string },
+  payload: { fullName: string; email?: string | null },
 ) {
   return apiRequest<AuthUser>(
     "/me/profile",
@@ -353,11 +424,30 @@ export async function createRoom(token: string, name: string) {
 }
 
 export async function joinRoom(token: string, roomCode: string) {
-  return apiRequest<{ roomId: string; role: Role }>(
+  return apiRequest<JoinRoomResponse>(
     "/rooms/join",
     {
       method: "POST",
       body: JSON.stringify({ roomCode }),
+    },
+    token,
+  );
+}
+
+export async function listJoinRequests(token: string) {
+  return apiRequest<RoomJoinRequest[]>("/join-requests", {}, token);
+}
+
+export async function decideJoinRequest(
+  token: string,
+  requestId: string,
+  decision: "accept" | "refuse",
+) {
+  return apiRequest<RoomJoinRequest>(
+    `/join-requests/${requestId}/decision`,
+    {
+      method: "POST",
+      body: JSON.stringify({ decision }),
     },
     token,
   );
@@ -380,6 +470,16 @@ export async function updateRoomStatus(
 
 export async function listRoomMembers(token: string, roomId: string) {
   return apiRequest<RoomMember[]>(`/rooms/${roomId}/members`, {}, token);
+}
+
+export async function removeRoomMember(token: string, roomId: string, userId: string) {
+  return apiRequest<void>(
+    `/rooms/${roomId}/members/${userId}`,
+    {
+      method: "DELETE",
+    },
+    token,
+  );
 }
 
 export async function markRoomRead(token: string, roomId: string) {
@@ -418,6 +518,20 @@ export async function addSupplierToRoom(
     {
       method: "POST",
       body: JSON.stringify({ supplierId }),
+    },
+    token,
+  );
+}
+
+export async function unlinkRoomSupplier(
+  token: string,
+  roomId: string,
+  supplierId: string,
+) {
+  return apiRequest<void>(
+    `/rooms/${roomId}/suppliers/${supplierId}`,
+    {
+      method: "DELETE",
     },
     token,
   );
@@ -542,6 +656,16 @@ export async function createMyDocument(
 
 export async function getDocument(token: string, documentId: string) {
   return apiRequest<DocumentRecord>(`/documents/${documentId}`, {}, token);
+}
+
+export async function deleteDocument(token: string, documentId: string) {
+  return apiRequest<void>(
+    `/documents/${documentId}`,
+    {
+      method: "DELETE",
+    },
+    token,
+  );
 }
 
 export async function getDocumentShare(token: string, documentId: string) {
