@@ -20,4 +20,12 @@ export default defineConfig({
     // Use PostCSS instead of Lightning CSS to avoid native binary issues
     transformer: 'postcss',
   },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:4000",
+        changeOrigin: true,
+      },
+    },
+  },
 })

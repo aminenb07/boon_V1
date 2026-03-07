@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: boon-api
+    runtime: node
+    rootDir: backend
+    healthCheckPath: /api/health
+    buildCommand: npm ci && npm run env:check && npm run prisma:generate && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_AUTH_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PUBLIC_API_BASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: SMS_WEBHOOK_URL
+        sync: false
+      - key: SMS_WEBHOOK_TOKEN
+        sync: false
+      - key: ALLOW_DEV_VERIFICATION_CODE
+        value: "false"

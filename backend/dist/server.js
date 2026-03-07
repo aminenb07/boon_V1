@@ -15,8 +15,11 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const pdfkit_1 = __importDefault(require("pdfkit"));
 dotenv_1.default.config();
+const DATABASE_URL = process.env.DATABASE_URL?.trim() || "file:./dev.db";
+const DATABASE_AUTH_TOKEN = process.env.DATABASE_AUTH_TOKEN?.trim();
 const adapter = new adapter_libsql_1.PrismaLibSql({
-    url: process.env.DATABASE_URL ?? "file:./dev.db",
+    url: DATABASE_URL,
+    ...(DATABASE_AUTH_TOKEN ? { authToken: DATABASE_AUTH_TOKEN } : {}),
 });
 const prisma = new client_1.PrismaClient({ adapter });
 const app = (0, express_1.default)();
@@ -38,7 +41,18 @@ const SMS_WEBHOOK_URL = process.env.SMS_WEBHOOK_URL?.trim();
 const SMS_WEBHOOK_TOKEN = process.env.SMS_WEBHOOK_TOKEN?.trim();
 const ALLOW_DEV_VERIFICATION_CODE = NODE_ENV !== "production" &&
     process.env.ALLOW_DEV_VERIFICATION_CODE?.trim() === "true";
-const DEFAULT_BOON_LOGO_PATH = node_path_1.default.resolve(__dirname, "../../public/boon.png");
+const DEFAULT_BOON_LOGO_PATHS = [
+    node_path_1.default.resolve(__dirname, "../public/boon.png"),
+    node_path_1.default.resolve(__dirname, "../../public/boon.png"),
+];
+if (NODE_ENV === "production") {
+    if (!process.env.JWT_SECRET?.trim()) {
+        throw new Error("JWT_SECRET is required in production.");
+    }
+    if (DATABASE_URL.startsWith("file:")) {
+        throw new Error("DATABASE_URL must point to a remote database in production. Local file databases are not supported for public deployment.");
+    }
+}
 if (!process.env.JWT_SECRET?.trim()) {
     // eslint-disable-next-line no-console
     console.warn("JWT_SECRET not set. Using ephemeral key for this process.");
@@ -48,6 +62,7 @@ if (!SMS_WEBHOOK_URL && !ALLOW_DEV_VERIFICATION_CODE) {
     console.warn("SMS_WEBHOOK_URL is not configured and ALLOW_DEV_VERIFICATION_CODE is disabled. Public phone verification will not be deliverable.");
 }
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 app.use((0, cors_1.default)({
     origin: CORS_ORIGINS?.length ? CORS_ORIGINS : true,
     credentials: true,
@@ -238,12 +253,15 @@ async function loadPdfLogoBuffer(logoUrl) {
             }
         }
     }
-    try {
-        return await promises_1.default.readFile(DEFAULT_BOON_LOGO_PATH);
+    for (const logoPath of DEFAULT_BOON_LOGO_PATHS) {
+        try {
+            return await promises_1.default.readFile(logoPath);
+        }
+        catch {
+            // Try the next fallback path.
+        }
     }
-    catch {
-        return null;
-    }
+    return null;
 }
 async function getOpenVerificationCode(userId, phone) {
     return prisma.phoneVerificationCode.findFirst({
@@ -2762,8 +2780,8 @@ app.get("/api/analytics/overview", authMiddleware, async (req, res) => {
 app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", app: "BOON API" });
 });
-app.listen(PORT, () => {
-    console.log(`BOON API listening on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`BOON API listening on http://0.0.0.0:${PORT}`);
     refreshAllRoomCaches().catch((error) => {
         // eslint-disable-next-line no-console
         console.error("Failed to refresh room caches at startup:", error);

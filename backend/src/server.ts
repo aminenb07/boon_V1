@@ -21,8 +21,11 @@ import PDFDocument from "pdfkit";
 
 dotenv.config();
 
+const DATABASE_URL = process.env.DATABASE_URL?.trim() || "file:./dev.db";
+const DATABASE_AUTH_TOKEN = process.env.DATABASE_AUTH_TOKEN?.trim();
 const adapter = new PrismaLibSql({
-  url: process.env.DATABASE_URL ?? "file:./dev.db",
+  url: DATABASE_URL,
+  ...(DATABASE_AUTH_TOKEN ? { authToken: DATABASE_AUTH_TOKEN } : {}),
 });
 const prisma = new PrismaClient({ adapter });
 
@@ -47,7 +50,21 @@ const SMS_WEBHOOK_TOKEN = process.env.SMS_WEBHOOK_TOKEN?.trim();
 const ALLOW_DEV_VERIFICATION_CODE =
   NODE_ENV !== "production" &&
   process.env.ALLOW_DEV_VERIFICATION_CODE?.trim() === "true";
-const DEFAULT_BOON_LOGO_PATH = path.resolve(__dirname, "../../public/boon.png");
+const DEFAULT_BOON_LOGO_PATHS = [
+  path.resolve(__dirname, "../public/boon.png"),
+  path.resolve(__dirname, "../../public/boon.png"),
+];
+
+if (NODE_ENV === "production") {
+  if (!process.env.JWT_SECRET?.trim()) {
+    throw new Error("JWT_SECRET is required in production.");
+  }
+  if (DATABASE_URL.startsWith("file:")) {
+    throw new Error(
+      "DATABASE_URL must point to a remote database in production. Local file databases are not supported for public deployment.",
+    );
+  }
+}
 
 if (!process.env.JWT_SECRET?.trim()) {
   // eslint-disable-next-line no-console
@@ -61,6 +78,7 @@ if (!SMS_WEBHOOK_URL && !ALLOW_DEV_VERIFICATION_CODE) {
 }
 
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 
 app.use(
   cors({
@@ -403,11 +421,15 @@ async function loadPdfLogoBuffer(logoUrl: string | null | undefined) {
     }
   }
 
-  try {
-    return await fs.readFile(DEFAULT_BOON_LOGO_PATH);
-  } catch {
-    return null;
+  for (const logoPath of DEFAULT_BOON_LOGO_PATHS) {
+    try {
+      return await fs.readFile(logoPath);
+    } catch {
+      // Try the next fallback path.
+    }
   }
+
+  return null;
 }
 
 async function getOpenVerificationCode(userId: string, phone: string) {
@@ -3385,8 +3407,8 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", app: "BOON API" });
 });
 
-app.listen(PORT, () => {
-  console.log(`BOON API listening on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`BOON API listening on http://0.0.0.0:${PORT}`);
   refreshAllRoomCaches().catch((error) => {
     // eslint-disable-next-line no-console
     console.error("Failed to refresh room caches at startup:", error);
