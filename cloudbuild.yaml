@@ -1,0 +1,46 @@
+substitutions:
+  _SERVICE_NAME: boon-api
+  _REGION: europe-west1
+  _REPOSITORY: boon-backend
+  _DATABASE_URL: libsql://replace-me.turso.io
+  _DATABASE_AUTH_TOKEN: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzI4ODI3OTUsImlkIjoiMDE5Y2M3ZjEtMGQwMS03NGViLWExZDAtNDU4NDczNzJhMmQ3IiwicmlkIjoiNGJjMTExNWQtZDZjOS00OWIwLWIzMGItN2JhMWM4ZmVjYTJjIn0.tJnq1D-l1NEPUuob5QnoDohdu4xjFCRrbSpX5etslW_gvvcpsoXIjBqAw6A-bIWnfc5OJtyb5Us_pCe8iLNnBg
+  _JWT_SECRET: b1adf7658097bb83ef4c9fcec72ef5ae281aac86e53e5fe01ae3640d2ea3a454
+  _PUBLIC_API_BASE_URL: https://boon-773871962269.europe-west1.run.app
+  _CORS_ORIGIN: https://appboon.vercel.app
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: Build Image
+    args:
+      - build
+      - -f
+      - backend/Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA
+      - backend
+
+  - name: gcr.io/cloud-builders/docker
+    id: Push Image
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: Deploy Cloud Run
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --set-env-vars
+      - NODE_ENV=production,DATABASE_URL=${_DATABASE_URL},DATABASE_AUTH_TOKEN=${_DATABASE_AUTH_TOKEN},JWT_SECRET=${_JWT_SECRET},PUBLIC_API_BASE_URL=${_PUBLIC_API_BASE_URL},CORS_ORIGIN=${_CORS_ORIGIN},ALLOW_DEV_VERIFICATION_CODE=false
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA
