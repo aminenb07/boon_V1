@@ -1,7 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+/**
+ * BOON App - Main Entry Component
+ *
+ * This component manages:
+ * - Global app state (auth, language, theme, active tab)
+ * - Local storage persistence
+ * - Navigation between main sections
+ * - User profile and supplier profile management
+ */
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   changeMyPassword,
-  getMe,
+  configureAuthSessionHandlers,
   getSupplierProfile,
   updateMe,
   upsertSupplierProfile,
@@ -16,11 +25,14 @@ import { Profile } from "./components/Profile";
 import type { Language, ThemeMode } from "./components/Profile";
 import { Reports } from "./components/Reports";
 import { RoomLive } from "./components/RoomLive";
+import boonLogo from "../assets/boon.png";
 
+// Local storage keys for persistence
 const AUTH_STORAGE_KEY = "boon.auth.v2";
 const LANGUAGE_STORAGE_KEY = "boon.language.v1";
 const THEME_STORAGE_KEY = "boon.theme.v1";
 
+// Translations for UI text (supports English, French, Arabic)
 const COPY = {
   en: {
     appTitle: "BOON Construction System",
@@ -205,104 +217,112 @@ const COPY = {
     },
   },
   ar: {
-    appTitle: "???? BOON ??????",
-    loading: "??? ????? BOON...",
+    appTitle: "نظام BOON للبناء",
+    loading: "جار تحميل BOON...",
     nav: {
-      dashboard: "????????",
-      rooms: "?????",
-      boons: "???????",
-      reports: "????????",
-      profile: "?????????",
+      dashboard: "الرئيسية",
+      rooms: "الغرف",
+      boons: "الوثائق",
+      reports: "التقارير",
+      profile: "الإعدادات",
     },
     dashboard: {
-      addExpense: "????? ???",
-      createProject: "??? ?????",
+      addExpense: "إرسال بون",
+      createProject: "فتح الغرف",
     },
     rooms: {
-      title: "?????",
-      subtitle: "???? ???? ?????? ?? ??????? ????? ??? ?????.",
-      roomLabel: "???? ??????",
-      createRoom: "????? ????",
-      joinRoom: "???????? ??????",
-      roomCode: "??? ??????",
-      roomName: "??? ??????",
-      loadError: "??? ????? ?????? ??????",
-      members: "????? ??????",
-      live: "???? ??????",
-      offline: "??? ???????...",
-      noMessages: "?? ???? ????? ??? ???? ??? ??????.",
-      amount: "??????",
-      category: "?????",
-      note: "??????",
-      send: "????? ?????",
-      linkSupplier: "??? ??????",
-      supplierSearch: "???? ?? ?????? ?????? ?? ??????",
-      noRooms: "?? ???? ???",
+      title: "الغرف",
+      subtitle: "تغذية شبيهة بالدردشة مع صلاحيات رؤية صارمة حسب الدور.",
+      roomLabel: "اختر الغرفة",
+      createRoom: "إنشاء غرفة",
+      joinRoom: "الانضمام بالكود",
+      roomCode: "كود الغرفة",
+      roomName: "اسم الغرفة",
+      loadError: "فشل تحميل بيانات الغرفة",
+      members: "أعضاء الغرفة",
+      live: "بث مباشر",
+      offline: "جار الاتصال...",
+      noMessages: "لا توجد بونات بعد في هذه الغرفة.",
+      amount: "المبلغ",
+      category: "الفئة",
+      note: "ملاحظة",
+      send: "إرسال البون",
+      linkSupplier: "ربط المورد",
+      supplierSearch: "ابحث عن المورد بالاسم أو الهاتف",
+      noRooms: "لا توجد غرف",
     },
     boons: {
-      title: "???? ???????",
-      subtitle: "????? ????? ?????? ????? ?? ??????? ?????????.",
-      personalTitle: "??????? ???????",
-      roomTitle: "????? ?????",
-      amount: "??????",
-      category: "?????",
-      note: "??????",
-      createPersonal: "??? ??? ????",
-      share: "?????? ??????",
-      pdf: "??? PDF",
-      room: "??????",
-      noData: "?? ???? ??????",
+      title: "مركز الوثائق",
+      subtitle: "وثائق شخصية ووثائق الغرف مع التصدير والمشاركة.",
+      personalTitle: "الوثائق الشخصية",
+      roomTitle: "وثائق الغرف",
+      amount: "المبلغ",
+      category: "الفئة",
+      note: "ملاحظة",
+      createPersonal: "حفظ بون شخصي",
+      share: "مشاركة واتساب",
+      pdf: "فتح PDF",
+      room: "الغرفة",
+      noData: "لا توجد بيانات",
     },
     profile: {
-      title: "????? ??????????",
-      subtitle: "????? ?????? ?????? ??????? ???????.",
-      profileCard: "?????",
-      languageCard: "?????",
-      languageLabel: "??? ???????",
-      themeCard: "??????",
-      themeLabel: "??? ?????",
-      securityCard: "???? ??????",
-      fullName: "????? ??????",
-      phone: "??????",
-      email: "?????? ??????????",
-      verification: "????? ??????",
-      verified: "?? ??????",
-      notVerified: "??? ?????",
-      saveProfile: "??? ?????",
-      currentPassword: "???? ?????? ???????",
-      newPassword: "???? ?????? ???????",
-      confirmPassword: "????? ???? ??????",
-      updatePassword: "????? ???? ??????",
-      logout: "????? ??????",
-      langEnglish: "??????????",
-      langFrench: "????????",
-      langArabic: "???????",
-      themeLight: "????",
-      themeDark: "????",
-      themeSystem: "??? ??????",
-      storeProfileCard: "??? ???? ??????",
-      storeName: "??? ??????",
-      address: "???????",
+      title: "الملف الشخصي والإعدادات",
+      subtitle: "إدارة الحساب واللغة والمظهر والحماية.",
+      profileCard: "الملف الشخصي",
+      languageCard: "اللغة",
+      languageLabel: "لغة التطبيق",
+      themeCard: "المظهر",
+      themeLabel: "وضع العرض",
+      securityCard: "كلمة المرور",
+      fullName: "الاسم الكامل",
+      phone: "الهاتف",
+      email: "البريد الإلكتروني",
+      verification: "تأكيد الهاتف",
+      verified: "مؤكد",
+      notVerified: "غير مؤكد",
+      saveProfile: "حفظ الملف",
+      currentPassword: "كلمة المرور الحالية",
+      newPassword: "كلمة المرور الجديدة",
+      confirmPassword: "تأكيد كلمة المرور",
+      updatePassword: "تحديث كلمة المرور",
+      logout: "تسجيل الخروج",
+      langEnglish: "الإنجليزية",
+      langFrench: "الفرنسية",
+      langArabic: "العربية",
+      themeLight: "فاتح",
+      themeDark: "داكن",
+      themeSystem: "حسب الجهاز",
+      storeProfileCard: "ملف متجر المورد",
+      storeName: "اسم المتجر",
+      address: "العنوان",
       ice: "ICE",
       rc: "RC",
-      footerNote: "?????? ???????",
-      saveStoreProfile: "??? ??? ??????",
+      footerNote: "ملاحظة الفوتر",
+      saveStoreProfile: "حفظ ملف المتجر",
     },
     messages: {
-      profileSaved: "?? ????? ????? ?????.",
-      passwordUpdated: "?? ????? ???? ?????? ?????.",
-      passwordMismatch: "????? ???? ?????? ??? ?????.",
-      storeProfileSaved: "?? ??? ??? ?????? ?????.",
+      profileSaved: "تم حفظ الملف الشخصي.",
+      passwordUpdated: "تم تحديث كلمة المرور.",
+      passwordMismatch: "تأكيد كلمة المرور غير مطابق.",
+      storeProfileSaved: "تم حفظ ملف المتجر.",
     },
   },
 } as const;
 
+/**
+ * Tabs available to each user role
+ * - Owners don't see the "Docs" tab since they manage rooms
+ * - Workers & Suppliers see all tabs including Docs
+ */
 const TABS_BY_ROLE: Record<Role, BottomTabId[]> = {
   OWNER: ["dashboard", "rooms", "reports", "profile"],
   WORKER: ["dashboard", "rooms", "boons", "reports", "profile"],
   SUPPLIER: ["dashboard", "rooms", "boons", "reports", "profile"],
 };
 
+/**
+ * Read saved authentication state from localStorage
+ */
 function readSavedAuth(): AuthResponse | null {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -313,6 +333,9 @@ function readSavedAuth(): AuthResponse | null {
   }
 }
 
+/**
+ * Persist authentication state to localStorage or clear it
+ */
 function saveAuth(auth: AuthResponse | null) {
   if (!auth) {
     localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -321,18 +344,27 @@ function saveAuth(auth: AuthResponse | null) {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
 }
 
+/**
+ * Read saved language preference from localStorage
+ */
 function readSavedLanguage(): Language {
   const raw = localStorage.getItem(LANGUAGE_STORAGE_KEY);
   if (raw === "en" || raw === "fr" || raw === "ar") return raw;
   return "en";
 }
 
+/**
+ * Read saved theme preference from localStorage
+ */
 function readSavedTheme(): ThemeMode {
   const raw = localStorage.getItem(THEME_STORAGE_KEY);
   if (raw === "light" || raw === "dark" || raw === "system") return raw;
   return "system";
 }
 
+/**
+ * Resolve theme mode to actual "light" or "dark" value
+ */
 function resolveTheme(mode: ThemeMode): "light" | "dark" {
   if (mode === "system") {
     return window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -343,22 +375,30 @@ function resolveTheme(mode: ThemeMode): "light" | "dark" {
 }
 
 export default function App() {
+  // App state
   const [booting, setBooting] = useState(true);
   const [auth, setAuth] = useState<AuthResponse | null>(null);
   const [language, setLanguage] = useState<Language>(readSavedLanguage);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readSavedTheme);
   const [activeTab, setActiveTab] = useState<BottomTabId>("dashboard");
+
+  // UI feedback state
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Loading states
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingStoreProfile, setIsSavingStoreProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [supplierProfile, setSupplierProfile] = useState<SupplierProfile | null>(null);
 
+  // Additional data
+  const [supplierProfile, setSupplierProfile] = useState<SupplierProfile | null>(null);
+  const authRef = useRef<AuthResponse | null>(null); // To access latest auth in callbacks without dependency issues
+
+  // Computed values
   const copy = COPY[language];
   const role = auth?.user.role;
   const availableTabIds = role ? TABS_BY_ROLE[role] : [];
-
   const tabs = useMemo(
     () =>
       availableTabIds.map((id) => ({
@@ -369,18 +409,21 @@ export default function App() {
     [availableTabIds, copy.nav],
   );
 
+  // Keep active tab valid when available tabs change
   useEffect(() => {
     if (!availableTabIds.includes(activeTab) && availableTabIds.length > 0) {
       setActiveTab(availableTabIds[0]);
     }
   }, [activeTab, availableTabIds]);
 
+  // Persist and apply language preference
   useEffect(() => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
     document.documentElement.lang = language;
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
   }, [language]);
 
+  // Persist and apply theme preference
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeMode);
     const root = document.documentElement;
@@ -393,46 +436,60 @@ export default function App() {
 
     applyTheme();
 
+    // Listen for system theme changes if in system mode
     if (themeMode !== "system") return undefined;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     media.addEventListener("change", applyTheme);
     return () => media.removeEventListener("change", applyTheme);
   }, [themeMode]);
 
+  // Boot app: load saved auth and mark as ready
   useEffect(() => {
-    async function bootstrap() {
-      const savedAuth = readSavedAuth();
-      if (!savedAuth?.token) {
-        setBooting(false);
-        return;
-      }
-
-      try {
-        const user = await getMe(savedAuth.token);
-        const refreshed = { ...savedAuth, user };
-        setAuth(refreshed);
-        saveAuth(refreshed);
-      } catch {
-        saveAuth(null);
-        setAuth(null);
-      } finally {
-        setBooting(false);
-      }
-    }
-
-    bootstrap();
+    setAuth(readSavedAuth());
+    setBooting(false);
   }, []);
 
+  // Keep authRef in sync with auth state
+  useEffect(() => {
+    authRef.current = auth;
+  }, [auth]);
+
+  // Configure auth session handlers (for API refresh token support)
+  useEffect(() => {
+    configureAuthSessionHandlers({
+      getAuth: () => authRef.current,
+      saveAuth: (nextAuth) => {
+        authRef.current = nextAuth;
+        setAuth(nextAuth);
+        saveAuth(nextAuth);
+      },
+      clearAuth: () => {
+        authRef.current = null;
+        setAuth(null);
+        saveAuth(null);
+        setSupplierProfile(null);
+      },
+    });
+
+    return () => configureAuthSessionHandlers(null);
+  }, []);
+
+  // Load supplier profile when auth is a supplier
   useEffect(() => {
     if (!auth || auth.user.role !== "SUPPLIER") {
       setSupplierProfile(null);
       return;
     }
     getSupplierProfile(auth.token)
-      .then((profile) => setSupplierProfile(profile))
+      .then((profile) => {
+        setSupplierProfile(profile);
+      })
       .catch(() => setSupplierProfile(null));
   }, [auth]);
 
+  /**
+   * Handle successful authentication (register/login/verify)
+   */
   function onAuthenticated(nextAuth: AuthResponse) {
     setAuth(nextAuth);
     saveAuth(nextAuth);
@@ -440,6 +497,9 @@ export default function App() {
     setError(null);
   }
 
+  /**
+   * Handle user logout: clear all auth and state
+   */
   function onLogout() {
     setAuth(null);
     saveAuth(null);
@@ -449,6 +509,9 @@ export default function App() {
     setSupplierProfile(null);
   }
 
+  /**
+   * Update user's profile information
+   */
   async function handleSaveProfile(payload: { fullName: string; email?: string | null }) {
     if (!auth) return;
     setError(null);
@@ -467,6 +530,9 @@ export default function App() {
     }
   }
 
+  /**
+   * Update supplier's store profile information
+   */
   async function handleSaveStoreProfile(payload: {
     storeName: string;
     phone: string;
@@ -491,6 +557,9 @@ export default function App() {
     }
   }
 
+  /**
+   * Update user's password
+   */
   async function handleChangePassword(payload: {
     currentPassword: string;
     newPassword: string;
@@ -519,6 +588,7 @@ export default function App() {
     }
   }
 
+  // Show loading state while booting
   if (booting) {
     return (
       <div className="min-h-screen bg-background text-foreground grid place-items-center">
@@ -527,30 +597,43 @@ export default function App() {
     );
   }
 
+  // Show auth gate if user is not logged in
   if (!auth) {
     return <AuthGate language={language} onAuthenticated={onAuthenticated} />;
   }
 
+  // Get verification status label
   const verificationLabel = auth.user.phoneVerifiedAt
     ? copy.profile.verified
     : copy.profile.notVerified;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.12),_transparent_28%),linear-gradient(180deg,_var(--background),color-mix(in_oklab,_var(--background)_88%,black))] text-foreground transition-colors">
+    <div className="min-h-screen bg-background text-foreground transition-colors">
       <div className="mx-auto max-w-6xl px-4 pt-5 pb-28">
-        <header className="mb-5 rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,#f6c341,#f58a2a_52%,#db5d21)] p-4 text-black shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-          <p className="text-xs font-bold uppercase tracking-[0.2em]">BOON</p>
-          <h1 className="mt-1 text-xl font-black leading-tight">{copy.appTitle}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium">
-            <span>{auth.user.fullName}</span>
-            <span className="rounded-full bg-black/10 px-2 py-1 text-xs">{auth.user.role}</span>
-            <span className="rounded-full bg-black/10 px-2 py-1 text-xs">{auth.user.phone}</span>
-            <span className="rounded-full bg-black/10 px-2 py-1 text-xs">{verificationLabel}</span>
+        <header className="mb-5 rounded-[24px] border border-border bg-card px-4 py-4 text-card-foreground shadow-[0_18px_52px_var(--boon-shadow)] sm:px-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border bg-white p-1.5 dark:bg-zinc-100">
+                <img src={boonLogo} alt="BOON" className="h-full w-full object-contain" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-muted-foreground">BOON</p>
+                <h1 className="mt-1 truncate text-xl font-black leading-tight tracking-normal sm:text-2xl">
+                  {copy.appTitle}
+                </h1>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm font-medium sm:justify-end">
+              <span className="max-w-[12rem] truncate font-bold">{auth.user.fullName}</span>
+              <span className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-black text-secondary-foreground">{auth.user.role}</span>
+              <span className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-black text-secondary-foreground">{auth.user.phone}</span>
+              <span className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-black text-secondary-foreground">{verificationLabel}</span>
+            </div>
           </div>
         </header>
 
         {activeTab !== "profile" && notice && (
-          <p className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300">
+          <p className="boon-success-note mb-4">
             {notice}
           </p>
         )}
@@ -563,6 +646,8 @@ export default function App() {
         <div className="mx-auto max-w-4xl">
           {activeTab === "dashboard" && (
             <Dashboard
+              role={role}
+              fullName={auth.user.fullName}
               onAddExpense={() => setActiveTab(role === "OWNER" ? "rooms" : "boons")}
               onCreateProject={() => setActiveTab("rooms")}
               canAddExpense

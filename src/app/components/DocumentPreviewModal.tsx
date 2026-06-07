@@ -1,6 +1,7 @@
 import boonLogo from "../../assets/boon.png";
 import type { DocumentRecord } from "../api";
 
+// This type defines the data shape for props.
 type Props = {
   document: DocumentRecord | null;
   onClose: () => void;
@@ -9,6 +10,7 @@ type Props = {
   onDelete?: (document: DocumentRecord) => void;
 };
 
+// This function runs.
 function money(value: number, currency: string) {
   return new Intl.NumberFormat("fr-MA", {
     style: "currency",
@@ -16,10 +18,12 @@ function money(value: number, currency: string) {
   }).format(value);
 }
 
+// This function runs image attachment.
 function isImageAttachment(mimeType?: string | null) {
   return typeof mimeType === "string" && mimeType.startsWith("image/");
 }
 
+// This component renders the document preview modal UI.
 export function DocumentPreviewModal({
   document,
   onClose,
@@ -29,7 +33,9 @@ export function DocumentPreviewModal({
 }: Props) {
   if (!document) return null;
 
+  // This variable stores the logo url value.
   const logoUrl = document.storeProfile.logoUrl || boonLogo;
+  // This variable stores the rows value.
   const rows =
     document.items.length > 0
       ? document.items
@@ -67,16 +73,16 @@ export function DocumentPreviewModal({
         </div>
 
         <div className="overflow-y-auto px-4 py-4 md:px-8">
-          <div className="mx-auto max-w-3xl rounded-[28px] border border-[#e7d8bc] bg-[#fffaf1] p-5 text-slate-900 shadow-[0_18px_60px_rgba(15,23,42,0.12)]">
-            <div className="flex flex-col gap-4 border-b border-[#eadbc1] pb-5 md:flex-row md:items-start md:justify-between">
+          <div className="mx-auto max-w-3xl rounded-[28px] border border-[#c9d8ff] bg-[#f7fbff] p-5 text-slate-950 shadow-[0_18px_60px_rgba(9,22,163,0.12)]">
+            <div className="flex flex-col gap-4 border-b border-[#c9d8ff] pb-5 md:flex-row md:items-start md:justify-between">
               <div className="flex items-start gap-4">
                 <img
                   src={logoUrl}
                   alt={document.storeProfile.storeName}
-                  className="h-16 w-16 rounded-2xl border border-[#eadbc1] bg-white object-cover p-1"
+                  className="h-16 w-16 rounded-2xl border border-[#c9d8ff] bg-white object-cover p-1"
                 />
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#0916a3]">
                     Supplier profile
                   </p>
                   <h4 className="text-2xl font-black">{document.storeProfile.storeName}</h4>
@@ -91,7 +97,7 @@ export function DocumentPreviewModal({
                 </div>
               </div>
 
-              <div className="rounded-3xl bg-slate-950 px-5 py-4 text-white md:min-w-[220px]">
+              <div className="rounded-3xl bg-[#0916a3] px-5 py-4 text-white md:min-w-[220px]">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/60">Total</p>
                 <p className="mt-2 text-3xl font-black">
                   {money(document.grandTotal, document.currency)}
@@ -102,9 +108,9 @@ export function DocumentPreviewModal({
               </div>
             </div>
 
-            <div className="mt-5 overflow-hidden rounded-[24px] border border-[#eadbc1] bg-white">
+            <div className="mt-5 overflow-hidden rounded-[24px] border border-[#c9d8ff] bg-white">
               <table className="w-full border-collapse text-left text-sm">
-                <thead className="bg-[#f6efe2] text-slate-600">
+                <thead className="bg-[#e7efff] text-slate-700">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Product</th>
                     <th className="px-4 py-3 text-right font-semibold">Qty</th>
@@ -115,7 +121,7 @@ export function DocumentPreviewModal({
                 </thead>
                 <tbody>
                   {rows.map((item) => (
-                    <tr key={item.id} className="border-t border-[#f2e8d5]">
+                    <tr key={item.id} className="border-t border-[#dbe8ff]">
                       <td className="px-4 py-3 font-medium">{item.productName}</td>
                       <td className="px-4 py-3 text-right">{item.qty}</td>
                       <td className="px-4 py-3 text-center">{item.unit || "-"}</td>
@@ -132,7 +138,7 @@ export function DocumentPreviewModal({
             </div>
 
             {document.note && (
-              <div className="mt-5 rounded-[24px] border border-[#eadbc1] bg-white px-4 py-4">
+              <div className="mt-5 rounded-[24px] border border-[#c9d8ff] bg-white px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
                   Note
                 </p>
@@ -141,19 +147,19 @@ export function DocumentPreviewModal({
             )}
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <div className="rounded-2xl border border-[#eadbc1] bg-white px-4 py-3 text-sm text-slate-600">
+              <div className="rounded-2xl border border-[#c9d8ff] bg-white px-4 py-3 text-sm text-slate-600">
                 Supplier: {document.supplier.fullName}
               </div>
-              <div className="rounded-2xl border border-[#eadbc1] bg-white px-4 py-3 text-sm text-slate-600">
+              <div className="rounded-2xl border border-[#c9d8ff] bg-white px-4 py-3 text-sm text-slate-600">
                 Scope: {document.isPersonal ? "Personal" : "Room"}
               </div>
-              <div className="rounded-2xl border border-[#eadbc1] bg-white px-4 py-3 text-sm text-slate-600">
+              <div className="rounded-2xl border border-[#c9d8ff] bg-white px-4 py-3 text-sm text-slate-600">
                 Type: {document.type}
               </div>
             </div>
 
             {document.attachments.length > 0 && (
-              <div className="mt-5 rounded-[24px] border border-[#eadbc1] bg-white px-4 py-4">
+              <div className="mt-5 rounded-[24px] border border-[#c9d8ff] bg-white px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
                   Attachments
                 </p>
@@ -164,7 +170,7 @@ export function DocumentPreviewModal({
                       href={attachment.fileUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="overflow-hidden rounded-2xl border border-[#eadbc1] bg-[#fff8eb]"
+                      className="overflow-hidden rounded-2xl border border-[#c9d8ff] bg-[#edf4ff]"
                     >
                       {isImageAttachment(attachment.mimeType) ? (
                         <img
@@ -183,7 +189,7 @@ export function DocumentPreviewModal({
               </div>
             )}
 
-            <div className="mt-6 border-t border-[#eadbc1] pt-4 text-center text-xs text-slate-500">
+            <div className="mt-6 border-t border-[#c9d8ff] pt-4 text-center text-xs text-slate-500">
               {document.storeProfile.footerNote ||
                 "Merci / Livraison sur site / Paiement a la reception"}
               <br />
@@ -212,7 +218,7 @@ export function DocumentPreviewModal({
           <button
             type="button"
             onClick={() => onExport(document)}
-            className="rounded-2xl bg-amber-400 px-4 py-2 text-sm font-black text-black hover:bg-amber-300"
+            className="boon-primary-action rounded-2xl px-4 py-2 text-sm font-black"
           >
             Export PDF
           </button>

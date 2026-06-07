@@ -1,22 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addSupplierToRoom,
   createRoom,
   createRoomDocument,
   decideJoinRequest,
+  exportDocumentPdf,
   getDocumentShare,
-  getDocumentPdfUrl,
   getRoomDetails,
-  getRoomStreamUrl,
   joinRoom,
   listJoinRequests,
   listRoomDocuments,
   listRoomMembers,
+  listWorkerSuppliers,
   listRoomSuppliers,
   listRoomsWithFilters,
   markRoomRead,
   removeRoomMember,
   searchSuppliers,
+  subscribeRoomDocuments,
   unlinkRoomSupplier,
   updateRoomStatus,
 } from "../api";
@@ -32,8 +33,10 @@ import type {
 } from "../api";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 
+// This type defines the data shape for language.
 type Language = "en" | "fr" | "ar";
 
+// This type defines the data shape for props.
 type Props = {
   token: string;
   userId: string;
@@ -62,8 +65,10 @@ type Props = {
   };
 };
 
+// This type defines the data shape for room filter.
 type RoomFilter = "all" | "active" | "closed";
 
+// This type defines the data shape for room tab.
 type RoomTab =
   | "feed"
   | "summary"
@@ -75,6 +80,7 @@ type RoomTab =
   | "share"
   | "settings";
 
+// This function runs.
 function money(value: number, currency: string) {
   return new Intl.NumberFormat("fr-MA", {
     style: "currency",
@@ -82,21 +88,38 @@ function money(value: number, currency: string) {
   }).format(value);
 }
 
+// This function formats date.
 function formatDate(iso?: string | null) {
   if (!iso) return "-";
   return new Date(iso).toLocaleString();
 }
 
+// This function runs room documents.
+function sortRoomDocuments(documents: DocumentRecord[]) {
+  return [...documents].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+}
+
+// This function runs documents signature.
+function roomDocumentsSignature(documents: DocumentRecord[]) {
+  // This variable stores the last document value.
+  const lastDocument = documents[documents.length - 1];
+  return `${documents.length}:${lastDocument?.id || "none"}:${lastDocument?.createdAt || "none"}`;
+}
+
+// This function runs badge.
 function roleBadge(roleValue: Role) {
   if (roleValue === "OWNER") {
     return "border-fuchsia-300 bg-fuchsia-100 text-fuchsia-800 dark:border-fuchsia-900/60 dark:bg-fuchsia-950/50 dark:text-fuchsia-200";
   }
   if (roleValue === "WORKER") {
-    return "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-200";
+    return "border-blue-300 bg-blue-100 text-blue-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200";
   }
   return "border-sky-300 bg-sky-100 text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/50 dark:text-sky-200";
 }
 
+// This function gets tabs by role.
 function getTabsByRole(role: Role): Array<{ id: RoomTab; label: string }> {
   if (role === "OWNER") {
     return [
@@ -124,6 +147,7 @@ function getTabsByRole(role: Role): Array<{ id: RoomTab; label: string }> {
   ];
 }
 
+// This component renders the room copy UI.
 const ROOM_COPY = {
   en: {
     searchRooms: "Search rooms...",
@@ -224,106 +248,142 @@ const ROOM_COPY = {
     phoneTag: "photo",
   },
   ar: {
-    searchRooms: "ابحث في الغرف...",
-    filterAll: "الكل",
-    filterActive: "نشطة",
-    filterClosed: "مغلقة",
-    newRoom: "+ غرفة جديدة",
-    joinWithCode: "الانضمام بالكود",
-    joinPending: "تم إرسال الطلب. في انتظار موافقة المالك.",
-    joinAccepted: "تم الانضمام إلى الغرفة بنجاح.",
-    requestAccepted: "تم قبول طلب العامل.",
-    requestRefused: "تم رفض طلب العامل.",
-    loadingRooms: "جار تحميل الغرف...",
-    loadingRoom: "جار تحميل الغرفة...",
-    noActivity: "لا يوجد نشاط بعد",
-    noMessagesToShare: "لا توجد وثائق للمشاركة بعد.",
-    roomCode: "كود الغرفة",
-    roomSettings: "إعدادات الغرفة",
-    roomStatus: "الحالة",
-    backToRooms: "العودة إلى الغرف",
-    statusLabel: "الحالة",
-    ownerTotal: "إجمالي المالك",
-    workerTotal: "إجمالي نطاق العامل",
-    supplierTotal: "إجمالي المورد",
-    remove: "حذف",
-    search: "بحث",
-    workerJoinRequests: "طلبات انضمام العمال",
-    accept: "قبول",
-    refuse: "رفض",
-    wantsToJoin: "يريد الانضمام إلى",
-    roomClosedReadOnly: "الغرفة مغلقة: وضع قراءة فقط.",
-    supplierLinked: "تم ربط المورد بنطاق العامل.",
-    supplierRemoved: "تم حذف المورد من هذا النطاق.",
-    memberRemoved: "تم حذف العضو من الغرفة.",
-    quickRoomBoon: "بون غرفة سريع",
-    noWorkerLink: "لا يوجد ربط مع عامل",
-    boonSent: "تم إرسال البون إلى تغذية الغرفة.",
-    noRoomDocsSupplier: "لا توجد وثائق خاصة بموردك داخل هذه الغرفة.",
-    preview: "معاينة",
-    shareWhatsapp: "مشاركة واتساب",
-    exportPdf: "تصدير PDF",
-    setActive: "تفعيل",
-    setClosed: "إغلاق",
-    statusUpdated: "تم تحديث حالة الغرفة إلى",
-    roomClosedSupplierLink: "الغرفة مغلقة. تم تعطيل ربط الموردين.",
-    roomClosedNewBoon: "الغرفة مغلقة. تم تعطيل إنشاء بونات جديدة.",
-    amountError: "يجب أن يكون المبلغ أكبر من 0.",
-    noActiveWorkerLink: "لا يوجد ربط نشط مع عامل داخل هذه الغرفة.",
-    phoneTag: "صورة",
+    searchRooms: "'(-+ AJ 'D:1A...",
+    filterAll: "'DCD",
+    filterActive: "F47)",
+    filterClosed: "E:DB)",
+    newRoom: "+ :1A) ,/J/)",
+    joinWithCode: "'D'F6E'E ('DCH/",
+    joinPending: "*E %13'D 'D7D(. AJ 'F*8'1 EH'AB) 'DE'DC.",
+    joinAccepted: "*E 'D'F6E'E %DI 'D:1A) (F,'-.",
+    requestAccepted: "*E B(HD 7D( 'D9'ED.",
+    requestRefused: "*E 1A6 7D( 'D9'ED.",
+    loadingRooms: ",'1 *-EJD 'D:1A...",
+    loadingRoom: ",'1 *-EJD 'D:1A)...",
+    noActivity: "D' JH,/ F4'7 (9/",
+    noMessagesToShare: "D' *H,/ H+'&B DDE4'1C) (9/.",
+    roomCode: "CH/ 'D:1A)",
+    roomSettings: "%9/'/'* 'D:1A)",
+    roomStatus: "'D-'D)",
+    backToRooms: "'D9H/) %DI 'D:1A",
+    statusLabel: "'D-'D)",
+    ownerTotal: "%,E'DJ 'DE'DC",
+    workerTotal: "%,E'DJ F7'B 'D9'ED",
+    supplierTotal: "%,E'DJ 'DEH1/",
+    remove: "-0A",
+    search: "(-+",
+    workerJoinRequests: "7D('* 'F6E'E 'D9E'D",
+    accept: "B(HD",
+    refuse: "1A6",
+    wantsToJoin: "J1J/ 'D'F6E'E %DI",
+    roomClosedReadOnly: "'D:1A) E:DB): H69 B1'!) AB7.",
+    supplierLinked: "*E 1(7 'DEH1/ (F7'B 'D9'ED.",
+    supplierRemoved: "*E -0A 'DEH1/ EF G0' 'DF7'B.",
+    memberRemoved: "*E -0A 'D96H EF 'D:1A).",
+    quickRoomBoon: "(HF :1A) 31J9",
+    noWorkerLink: "D' JH,/ 1(7 E9 9'ED",
+    boonSent: "*E %13'D 'D(HF %DI *:0J) 'D:1A).",
+    noRoomDocsSupplier: "D' *H,/ H+'&B .'5) (EH1/C /'.D G0G 'D:1A).",
+    preview: "E9'JF)",
+    shareWhatsapp: "E4'1C) H'*3'(",
+    exportPdf: "*5/J1 PDF",
+    setActive: "*A9JD",
+    setClosed: "%:D'B",
+    statusUpdated: "*E *-/J+ -'D) 'D:1A) %DI",
+    roomClosedSupplierLink: "'D:1A) E:DB). *E *97JD 1(7 'DEH1/JF.",
+    roomClosedNewBoon: "'D:1A) E:DB). *E *97JD %F4'! (HF'* ,/J/).",
+    amountError: "J,( #F JCHF 'DE(D: #C(1 EF 0.",
+    noActiveWorkerLink: "D' JH,/ 1(7 F47 E9 9'ED /'.D G0G 'D:1A).",
+    phoneTag: "5H1)",
   },
 } as const;
 
+// This component renders the room live UI.
 export function RoomLive({ token, userId, role, language, labels }: Props) {
-  const copy = ROOM_COPY[language];
+  // This variable stores the copy value.
+  const copy = ROOM_COPY[language === "ar" ? "en" : language];
+  // This variable stores the filters value.
   const filters: Array<{ id: RoomFilter; label: string }> = [
     { id: "all", label: copy.filterAll },
     { id: "active", label: copy.filterActive },
     { id: "closed", label: copy.filterClosed },
   ];
+  // This variable stores the rooms value.
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
+  // This variable stores the selected room id value.
   const [selectedRoomId, setSelectedRoomId] = useState<string>("");
+  // This variable stores the room details value.
   const [roomDetails, setRoomDetails] = useState<RoomDetails | null>(null);
+  // This variable stores the members value.
   const [members, setMembers] = useState<RoomMember[]>([]);
+  // This variable stores the documents value.
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  // This variable stores the links value.
   const [links, setLinks] = useState<WorkerSupplierLink[]>([]);
+  // This variable stores the join requests value.
   const [joinRequests, setJoinRequests] = useState<RoomJoinRequest[]>([]);
+  // This variable stores the supplier results value.
   const [supplierResults, setSupplierResults] = useState<SupplierUser[]>([]);
+  // This state stores the current search value.
   const [search, setSearch] = useState("");
+  // This variable stores the filter value.
   const [filter, setFilter] = useState<RoomFilter>("all");
+  // This state stores the current supplier query value.
   const [supplierQuery, setSupplierQuery] = useState("");
+  // This state stores the current room name value.
   const [roomName, setRoomName] = useState("");
+  // This state stores the current room code value.
   const [roomCode, setRoomCode] = useState("");
+  // This variable stores the view value.
   const [view, setView] = useState<"list" | "room">("list");
+  // This variable stores the tab value.
   const [tab, setTab] = useState<RoomTab>("feed");
+  // This variable stores the notice value.
   const [notice, setNotice] = useState<string | null>(null);
+  // This variable stores the error value.
   const [error, setError] = useState<string | null>(null);
+  // This variable stores the selected document value.
   const [selectedDocument, setSelectedDocument] = useState<DocumentRecord | null>(null);
+  // This state stores the current loading rooms value.
   const [loadingRooms, setLoadingRooms] = useState(false);
+  // This state stores the current loading room value.
   const [loadingRoom, setLoadingRoom] = useState(false);
+  // This state stores the current is live value.
   const [isLive, setIsLive] = useState(false);
+  // This ref keeps access to the room documents signature ref element or value.
+  const roomDocumentsSignatureRef = useRef("0:none:none");
 
+  // This state stores the current quick amount value.
   const [quickAmount, setQuickAmount] = useState("");
+  // This state stores the current quick category value.
   const [quickCategory, setQuickCategory] = useState("");
+  // This state stores the current quick note value.
   const [quickNote, setQuickNote] = useState("");
+  // This state stores the current quick worker id value.
   const [quickWorkerId, setQuickWorkerId] = useState("");
 
+  // This memoized value keeps the computed tabs result.
   const tabs = useMemo(() => getTabsByRole(role), [role]);
+  // This memoized value keeps the computed selected room card result.
   const selectedRoomCard = useMemo(
     () => rooms.find((room) => room.id === selectedRoomId) ?? null,
     [rooms, selectedRoomId],
   );
 
+  // This memoized value keeps the computed room docs for supplier result.
   const roomDocsForSupplier = useMemo(
     () => documents.filter((doc) => doc.supplierId === userId),
     [documents, userId],
   );
 
+  // This memoized value keeps the computed is room closed result.
   const isRoomClosed = useMemo(() => {
+    // This variable stores the status value.
     const status = roomDetails?.status || selectedRoomCard?.status;
     return status === "CLOSED";
   }, [roomDetails?.status, selectedRoomCard?.status]);
 
+  // This memoized value keeps the computed supplier links for me result.
   const supplierLinksForMe = useMemo(
     () => links.filter((link) => link.supplierId === userId),
     [links, userId],
@@ -336,7 +396,9 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     }
   }, [quickWorkerId, role, supplierLinksForMe]);
 
+  // This function refreshes rooms.
   async function refreshRooms() {
+    // This variable stores the next rooms value.
     const nextRooms = await listRoomsWithFilters(token, {
       search,
       filter,
@@ -344,35 +406,41 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     setRooms(nextRooms);
   }
 
+  // This function refreshes join requests.
   async function refreshJoinRequests() {
     if (role !== "OWNER") {
       setJoinRequests([]);
       return;
     }
+    // This variable stores the next requests value.
     const nextRequests = await listJoinRequests(token);
     setJoinRequests(nextRequests);
   }
 
+  // This function runs room screen.
   async function loadRoomScreen(roomId: string) {
+    // This variable stores the details value.
     const [details, roomDocs, roomMembers, roomLinks] = await Promise.all([
       getRoomDetails(token, roomId),
       listRoomDocuments(token, roomId),
       role === "SUPPLIER"
         ? Promise.resolve([] as RoomMember[])
         : listRoomMembers(token, roomId),
-      listRoomSuppliers(token, roomId).catch(() => [] as WorkerSupplierLink[]),
+      role === "SUPPLIER"
+        ? listWorkerSuppliers(token, roomId).catch(() => [] as WorkerSupplierLink[])
+        : listRoomSuppliers(token, roomId).catch(() => [] as WorkerSupplierLink[]),
     ]);
 
     setRoomDetails(details);
-    setDocuments(
-      [...roomDocs].sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      ),
-    );
+    // This variable stores the sorted room docs value.
+    const sortedRoomDocs = sortRoomDocuments(roomDocs);
+    roomDocumentsSignatureRef.current = roomDocumentsSignature(sortedRoomDocs);
+    setDocuments(sortedRoomDocs);
     setMembers(roomMembers);
     setLinks(roomLinks);
   }
 
+  // This function opens room.
   async function openRoom(roomId: string) {
     setError(null);
     setNotice(null);
@@ -382,8 +450,7 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
       setView("room");
       setTab("feed");
       await loadRoomScreen(roomId);
-      await markRoomRead(token, roomId);
-      await refreshRooms();
+      await Promise.all([markRoomRead(token, roomId), refreshRooms()]);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : labels.loadError);
     } finally {
@@ -400,57 +467,60 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
       })
       .finally(() => setLoadingRooms(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, filter, search]);
+  }, [token, filter, search, userId]);
 
   useEffect(() => {
     if (!selectedRoomId || view !== "room") return undefined;
-    const source = new EventSource(getRoomStreamUrl(selectedRoomId, token));
 
-    const onReady = () => setIsLive(true);
-    const onCreated = (event: MessageEvent<string>) => {
-      const parsed = JSON.parse(event.data) as DocumentRecord;
-      setDocuments((current) => {
-        if (current.some((doc) => doc.id === parsed.id)) return current;
-        return [...current, parsed].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        );
-      });
-      refreshRooms().catch(() => undefined);
-      getRoomDetails(token, selectedRoomId)
-        .then((details) => setRoomDetails(details))
-        .catch(() => undefined);
-      if (tab === "feed") {
-        markRoomRead(token, selectedRoomId)
-          .then(() => refreshRooms())
-          .catch(() => undefined);
-      }
-    };
-    const onLinked = () => {
-      listRoomSuppliers(token, selectedRoomId)
-        .then((result) => setLinks(result))
-        .catch(() => undefined);
-    };
+    // This variable stores the unsubscribe value.
+    const unsubscribe = subscribeRoomDocuments(
+      token,
+      selectedRoomId,
+      (nextDocuments) => {
+        setIsLive(true);
+        // This variable stores the sorted documents value.
+        const sortedDocuments = sortRoomDocuments(nextDocuments);
+        // This variable stores the next signature value.
+        const nextSignature = roomDocumentsSignature(sortedDocuments);
 
-    source.addEventListener("ready", onReady as EventListener);
-    source.addEventListener("document.created", onCreated as EventListener);
-    source.addEventListener("supplier.linked", onLinked as EventListener);
-    source.onerror = () => setIsLive(false);
+        if (nextSignature === roomDocumentsSignatureRef.current) {
+          return;
+        }
+
+        roomDocumentsSignatureRef.current = nextSignature;
+        setDocuments(sortedDocuments);
+
+        Promise.all([
+          getRoomDetails(token, selectedRoomId).then((details) => {
+            setRoomDetails(details);
+          }),
+          (role === "SUPPLIER"
+            ? listWorkerSuppliers(token, selectedRoomId)
+            : listRoomSuppliers(token, selectedRoomId)
+          ).then((result) => {
+            setLinks(result);
+          }).catch(() => undefined),
+          refreshRooms(),
+        ]).catch(() => undefined);
+      },
+      () => setIsLive(false),
+    );
 
     return () => {
-      source.removeEventListener("ready", onReady as EventListener);
-      source.removeEventListener("document.created", onCreated as EventListener);
-      source.removeEventListener("supplier.linked", onLinked as EventListener);
-      source.close();
+      unsubscribe();
+      roomDocumentsSignatureRef.current = "0:none:none";
       setIsLive(false);
     };
-  }, [selectedRoomId, tab, token, view]);
+  }, [selectedRoomId, token, userId, view]);
 
+  // This function handles create room.
   async function handleCreateRoom(event: React.FormEvent) {
     event.preventDefault();
     if (!roomName.trim()) return;
     setError(null);
     setNotice(null);
     try {
+      // This variable stores the room value.
       const room = await createRoom(token, roomName.trim());
       setRoomName("");
       await refreshRooms();
@@ -460,12 +530,14 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     }
   }
 
+  // This function handles join room.
   async function handleJoinRoom(event: React.FormEvent) {
     event.preventDefault();
     if (!roomCode.trim()) return;
     setError(null);
     setNotice(null);
     try {
+      // This variable stores the result value.
       const result = await joinRoom(token, roomCode.trim().toUpperCase());
       setRoomCode("");
       await refreshRooms();
@@ -479,6 +551,7 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     }
   }
 
+  // This function handles join decision.
   async function handleJoinDecision(
     requestId: string,
     decision: "accept" | "refuse",
@@ -498,6 +571,7 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     }
   }
 
+  // This function handles search suppliers.
   async function handleSearchSuppliers(event: React.FormEvent) {
     event.preventDefault();
     if (!selectedRoomId) return;
@@ -507,6 +581,7 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     }
     setError(null);
     try {
+      // This variable stores the result value.
       const result = await searchSuppliers(token, supplierQuery.trim());
       setSupplierResults(result);
     } catch (searchError) {
@@ -514,6 +589,7 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     }
   }
 
+  // This function handles link supplier.
   async function handleLinkSupplier(supplierId: string) {
     if (!selectedRoomId) return;
     if (isRoomClosed) {
@@ -524,58 +600,42 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     setNotice(null);
     try {
       await addSupplierToRoom(token, selectedRoomId, supplierId);
-      const [nextLinks, nextMembers] = await Promise.all([
-        listRoomSuppliers(token, selectedRoomId),
-        listRoomMembers(token, selectedRoomId),
-      ]);
-      setLinks(nextLinks);
-      setMembers(nextMembers);
+      await Promise.all([loadRoomScreen(selectedRoomId), refreshRooms()]);
       setNotice(copy.supplierLinked);
     } catch (linkError) {
       setError(linkError instanceof Error ? linkError.message : labels.loadError);
     }
   }
 
+  // This function handles remove supplier.
   async function handleRemoveSupplier(supplierId: string) {
     if (!selectedRoomId) return;
     setError(null);
     setNotice(null);
     try {
       await unlinkRoomSupplier(token, selectedRoomId, supplierId);
-      const [nextLinks, nextMembers] = await Promise.all([
-        listRoomSuppliers(token, selectedRoomId),
-        listRoomMembers(token, selectedRoomId),
-      ]);
-      setLinks(nextLinks);
-      setMembers(nextMembers);
-      await refreshRooms();
+      await Promise.all([loadRoomScreen(selectedRoomId), refreshRooms()]);
       setNotice(copy.supplierRemoved);
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : labels.loadError);
     }
   }
 
+  // This function handles remove member.
   async function handleRemoveMember(memberUserId: string) {
     if (!selectedRoomId) return;
     setError(null);
     setNotice(null);
     try {
       await removeRoomMember(token, selectedRoomId, memberUserId);
-      const [roomMembers, roomLinks] = await Promise.all([
-        listRoomMembers(token, selectedRoomId),
-        listRoomSuppliers(token, selectedRoomId).catch(() => [] as WorkerSupplierLink[]),
-      ]);
-      setMembers(roomMembers);
-      setLinks(roomLinks);
-      await refreshRooms();
-      const details = await getRoomDetails(token, selectedRoomId);
-      setRoomDetails(details);
+      await Promise.all([loadRoomScreen(selectedRoomId), refreshRooms()]);
       setNotice(copy.memberRemoved);
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : labels.loadError);
     }
   }
 
+  // This function handles send supplier boon.
   async function handleSendSupplierBoon(event: React.FormEvent) {
     event.preventDefault();
     if (!selectedRoomId || role !== "SUPPLIER") return;
@@ -584,12 +644,14 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
       return;
     }
 
+    // This variable stores the amount value.
     const amount = Number(quickAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setError(copy.amountError);
       return;
     }
 
+    // This variable stores the resolved worker id value.
     const resolvedWorkerId =
       quickWorkerId || supplierLinksForMe[0]?.workerId || "";
     if (!resolvedWorkerId) {
@@ -612,41 +674,45 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
       setQuickCategory("");
       setQuickNote("");
       setNotice(copy.boonSent);
-      const docs = await listRoomDocuments(token, selectedRoomId);
-      setDocuments(
-        [...docs].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        ),
-      );
-      await refreshRooms();
-      const details = await getRoomDetails(token, selectedRoomId);
-      setRoomDetails(details);
+      await Promise.all([loadRoomScreen(selectedRoomId), refreshRooms()]);
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : labels.loadError);
     }
   }
 
+  // This function handles change room status.
   async function handleChangeRoomStatus(next: "ACTIVE" | "CLOSED") {
     if (!selectedRoomId) return;
     setError(null);
     setNotice(null);
     try {
       await updateRoomStatus(token, selectedRoomId, next);
-      const [details] = await Promise.all([getRoomDetails(token, selectedRoomId), refreshRooms()]);
-      setRoomDetails(details);
+      await Promise.all([loadRoomScreen(selectedRoomId), refreshRooms()]);
       setNotice(`${copy.statusUpdated} ${next}.`);
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : labels.loadError);
     }
   }
 
+  // This function handles share.
   async function handleShare(doc: DocumentRecord) {
     setError(null);
-    const popup = window.open("", "_blank");
+    // This variable stores the popup value.
+    const popup = typeof navigator.share === "function"
+      ? null
+      : window.open("about:blank", "_blank", "noopener,noreferrer");
     try {
+      // This variable stores the payload value.
       const payload = await getDocumentShare(token, doc.id);
+      if (typeof navigator.share === "function") {
+        await navigator.share({
+          title: doc.category || doc.type,
+          text: payload.message || `${doc.category || doc.type} - ${money(doc.grandTotal, doc.currency)}`,
+        });
+        return;
+      }
       if (popup) {
-        popup.location.href = payload.whatsappUrl;
+        popup.location.replace(payload.whatsappUrl);
       } else {
         window.location.href = payload.whatsappUrl;
       }
@@ -656,12 +722,26 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     }
   }
 
-  function handleExport(doc: DocumentRecord) {
+  // This function handles export.
+  async function handleExport(doc: DocumentRecord) {
     setError(null);
-    const pdfUrl = getDocumentPdfUrl(doc.id, token);
-    window.open(pdfUrl, "_blank", "noopener,noreferrer");
+    // This variable stores the popup value.
+    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+    try {
+      // This variable stores the result value.
+      const result = await exportDocumentPdf(token, doc.id);
+      if (popup) {
+        popup.location.replace(result.pdfUrl);
+      } else {
+        window.location.href = result.pdfUrl;
+      }
+    } catch (pdfError) {
+      popup?.close();
+      setError(pdfError instanceof Error ? pdfError.message : copy.exportPdf);
+    }
   }
 
+  // This variable stores the live label value.
   const liveLabel = isLive ? labels.live : labels.offline;
 
   if (view === "list") {
@@ -749,8 +829,8 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
         )}
 
         {role === "OWNER" && joinRequests.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
+            <p className="text-sm font-semibold text-blue-900 dark:text-zinc-200">
               {copy.workerJoinRequests}
             </p>
             <div className="mt-3 space-y-2">
@@ -799,6 +879,7 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
             </div>
           )}
           {rooms.map((room) => {
+            // This variable stores the scoped total value.
             const scopedTotal =
               room.roleInRoom === "OWNER"
                 ? room.totalForOwner
@@ -874,7 +955,7 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
           {copy.statusLabel}: {roomDetails?.status || selectedRoomCard?.status || "ACTIVE"}
         </p>
         {isRoomClosed && (
-          <p className="mt-1 text-xs font-semibold text-amber-700">
+          <p className="mt-1 text-xs font-semibold text-primary">
             {copy.roomClosedReadOnly}
           </p>
         )}
@@ -917,38 +998,74 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
       )}
 
       {tab === "feed" && (
-        <div className="space-y-2">
+        <div className="min-h-[360px] space-y-3 rounded-2xl border border-border/70 bg-secondary/45 p-3">
           {documents.length === 0 && (
-            <div className="boon-surface border-dashed p-4 text-center text-sm text-muted-foreground">
+            <div className="mx-auto mt-16 max-w-xs rounded-2xl border border-dashed border-border bg-card/80 p-4 text-center text-sm text-muted-foreground">
               {labels.noMessages}
             </div>
           )}
           {documents.map((doc) => {
+            // This variable tracks whether is mine is true.
             const isMine = doc.supplierId === userId;
+            // This variable tracks whether has photo is true.
             const hasPhoto = doc.attachments.length > 0;
             return (
-              <button
-                key={doc.id}
-                type="button"
-                onClick={() => setSelectedDocument(doc)}
-                className={`max-w-[88%] rounded-2xl px-3 py-2 border text-sm ${
-                  isMine
-                    ? "ml-auto bg-blue-600 text-white border-blue-700 rounded-br-md"
-                    : "bg-card text-card-foreground border-border rounded-bl-md"
-                }`}
-              >
-                <p className={`text-xs ${isMine ? "text-blue-100" : "text-muted-foreground"}`}>
-                  {doc.supplier.fullName} - {formatDate(doc.createdAt)}
-                </p>
-                <p className="font-semibold">
-                  {money(doc.grandTotal, doc.currency)}
-                </p>
-                <p className="text-xs mt-1">
-                  {doc.category || doc.type}
-                  {hasPhoto ? ` - ${copy.phoneTag}` : ""}
-                </p>
-                {doc.note && <p className="text-xs mt-1">{doc.note}</p>}
-              </button>
+              <div key={doc.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDocument(doc)}
+                  className={`group relative max-w-[82%] rounded-2xl px-3 py-2.5 text-left text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:max-w-[68%] ${
+                    isMine
+                      ? "rounded-br-sm bg-[#0b66ff] text-white dark:bg-zinc-700"
+                      : "rounded-bl-sm border border-border/80 bg-card text-card-foreground"
+                  }`}
+                >
+                  <span
+                    className={`absolute bottom-0 h-3 w-3 ${
+                      isMine
+                        ? "-right-1 bg-[#0b66ff] [clip-path:polygon(0_0,100%_100%,0_100%)] dark:bg-zinc-700"
+                        : "-left-1 bg-card [clip-path:polygon(100%_0,100%_100%,0_100%)]"
+                    }`}
+                  />
+
+                  <span
+                    className={`mb-1 block text-[11px] font-semibold leading-none ${
+                      isMine ? "text-zinc-200" : "text-blue-500 dark:text-zinc-300"
+                    }`}
+                  >
+                    {doc.supplier.fullName}
+                  </span>
+
+                  <span className="block text-base font-black leading-tight">
+                    {money(doc.grandTotal, doc.currency)}
+                  </span>
+
+                  <span
+                    className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      isMine
+                        ? "bg-white/15 text-white"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {doc.category || doc.type}
+                    {hasPhoto ? ` - ${copy.phoneTag}` : ""}
+                  </span>
+
+                  {doc.note && (
+                    <span className={`mt-2 block text-xs leading-relaxed ${isMine ? "text-blue-50" : "text-muted-foreground"}`}>
+                      {doc.note}
+                    </span>
+                  )}
+
+                  <span
+                    className={`mt-2 block text-right text-[10px] leading-none ${
+                      isMine ? "text-blue-100" : "text-muted-foreground"
+                    }`}
+                  >
+                    {formatDate(doc.createdAt)}
+                  </span>
+                </button>
+              </div>
             );
           })}
         </div>
@@ -1243,9 +1360,5 @@ export function RoomLive({ token, userId, role, language, labels }: Props) {
     </div>
   );
 }
-
-
-
-
 
 

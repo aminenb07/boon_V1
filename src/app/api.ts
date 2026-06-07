@@ -1,19 +1,64 @@
-const browserDefaultApiBase =
-  typeof window !== "undefined"
-    ? `${window.location.origin.replace(/\/$/, "")}/api`
-    : "http://localhost:4000/api";
+import {
+  API_BASE,
+  configureAuthSessionHandlers,
+  restAddSupplierToRoom,
+  restChangeMyPassword,
+  restCreateDocument,
+  restCreateMyDocument,
+  restCreateRoom,
+  restCreateRoomDocument,
+  restDecideJoinRequest,
+  restDeleteDocument,
+  restExportDocumentPdf,
+  restGetAnalyticsOverview,
+  restGetDocument,
+  restGetDocumentPdfUrl,
+  restGetDocumentShare,
+  restGetMe,
+  restGetRoomDetails,
+  restGetRoomStreamUrl,
+  restGetSupplierProfile,
+  restJoinRoom,
+  restLinkSupplier,
+  restListJoinRequests,
+  restListMyDocuments,
+  restListMyWorkerSuppliers,
+  restListPersonalDocuments,
+  restListRoomDocuments,
+  restListRoomMembers,
+  restListRoomSuppliers,
+  restListRooms,
+  restListRoomsWithFilters,
+  restListWorkerSuppliers,
+  restLogin,
+  restMarkRoomRead,
+  restRegister,
+  restRefreshAuth,
+  restRemoveRoomMember,
+  restResendVerificationCode,
+  restSearchSuppliers,
+  restSubscribeRoomDocuments,
+  restUnlinkRoomSupplier,
+  restUpdateMe,
+  restUpdateRoomStatus,
+  restUpsertSupplierProfile,
+  restVerifyPhone,
+} from "./api-rest";
 
-export const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.trim()
-  || import.meta.env.VITE_API_BASE?.trim()
-  || browserDefaultApiBase;
+export { configureAuthSessionHandlers };
 
+// This type defines the data shape for role.
 export type Role = "OWNER" | "WORKER" | "SUPPLIER";
+// This type defines the data shape for document type.
 export type DocumentType = "RECEIPT" | "INVOICE" | "QUOTE";
+// This type defines the data shape for room status.
 export type RoomStatus = "ACTIVE" | "CLOSED";
+// This type defines the data shape for user status.
 export type UserStatus = "ACTIVE" | "DISABLED";
+// This type defines the data shape for join request status.
 export type JoinRequestStatus = "PENDING" | "ACCEPTED" | "REFUSED";
 
+// This type defines the data shape for auth user.
 export type AuthUser = {
   id: string;
   phone: string;
@@ -24,11 +69,15 @@ export type AuthUser = {
   status: UserStatus;
 };
 
+// This type defines the data shape for auth response.
 export type AuthResponse = {
   token: string;
+  refreshToken: string;
+  expiresInSeconds?: number;
   user: AuthUser;
 };
 
+// This type defines the data shape for verification response.
 export type VerificationResponse = {
   verificationRequired: true;
   phone: string;
@@ -38,6 +87,7 @@ export type VerificationResponse = {
   user?: AuthUser;
 };
 
+// This type defines the data shape for join room response.
 export type JoinRoomResponse = {
   roomId: string;
   requestId?: string;
@@ -45,6 +95,7 @@ export type JoinRoomResponse = {
   status: "pending" | "accepted";
 };
 
+// This type defines the data shape for room join request.
 export type RoomJoinRequest = {
   id: string;
   roomId: string;
@@ -66,6 +117,7 @@ export type RoomJoinRequest = {
   };
 };
 
+// This type defines the data shape for room summary.
 export type RoomSummary = {
   id: string;
   name: string;
@@ -81,6 +133,7 @@ export type RoomSummary = {
   unreadCount: number;
 };
 
+// This type defines the data shape for room details.
 export type RoomDetails = {
   id: string;
   name: string;
@@ -103,6 +156,7 @@ export type RoomDetails = {
   };
 };
 
+// This type defines the data shape for room member.
 export type RoomMember = {
   id: string;
   roomId: string;
@@ -118,6 +172,7 @@ export type RoomMember = {
   };
 };
 
+// This type defines the data shape for supplier profile.
 export type SupplierProfile = {
   id: string;
   supplierId: string;
@@ -132,12 +187,14 @@ export type SupplierProfile = {
   updatedAt: string;
 };
 
+// This type defines the data shape for supplier user.
 export type SupplierUser = {
   id: string;
   fullName: string;
   phone: string;
 };
 
+// This type defines the data shape for worker supplier link.
 export type WorkerSupplierLink = {
   id: string;
   roomId: string;
@@ -160,6 +217,7 @@ export type WorkerSupplierLink = {
   };
 };
 
+// This type defines the data shape for document item.
 export type DocumentItem = {
   id: string;
   productName: string;
@@ -170,6 +228,7 @@ export type DocumentItem = {
   position: number;
 };
 
+// This type defines the data shape for attachment.
 export type Attachment = {
   id: string;
   fileUrl: string;
@@ -177,6 +236,7 @@ export type Attachment = {
   createdAt: string;
 };
 
+// This type defines the data shape for document record.
 export type DocumentRecord = {
   id: string;
   type: DocumentType;
@@ -201,6 +261,7 @@ export type DocumentRecord = {
   attachments: Attachment[];
 };
 
+// This type defines the data shape for create document input.
 export type CreateDocumentInput = {
   type: DocumentType;
   isPersonal?: boolean;
@@ -220,11 +281,14 @@ export type CreateDocumentInput = {
   }[];
 };
 
+// This type defines the data shape for share payload.
 export type SharePayload = {
   pdfUrl: string;
   whatsappUrl: string;
+  message?: string;
 };
 
+// This type defines the data shape for analytics overview.
 export type AnalyticsOverview = {
   totals: {
     today: number;
@@ -260,66 +324,27 @@ export type AnalyticsOverview = {
   }>;
 };
 
-type ApiErrorPayload = Record<string, unknown> & {
-  error?: string;
-};
-
-export async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {},
-  token?: string | null,
-): Promise<T> {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
-
-  if (token) {
-    (headers as Record<string, string>).Authorization = `Bearer ${token}`;
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-    });
-  } catch {
-    throw new Error(
-      `Network error: API unreachable at ${API_BASE}. Configure VITE_API_BASE_URL for production or make sure the backend is deployed and reachable.`,
-    );
-  }
-
-  const isJson = response.headers.get("content-type")?.includes("application/json");
-  const payload = isJson
-    ? ((await response.json()) as ApiErrorPayload)
-    : null;
-
-  if (!response.ok) {
-    const error = new Error(
-      payload?.error || `Request failed (${response.status})`,
-    ) as Error & { payload?: ApiErrorPayload };
-    error.payload = payload || undefined;
-    throw error;
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return payload as T;
-}
-
+// This function gets document pdf url.
 export function getDocumentPdfUrl(documentId: string, token: string) {
-  const encoded = encodeURIComponent(token);
-  return `${API_BASE}/documents/${documentId}/pdf?token=${encoded}`;
+  return restGetDocumentPdfUrl(documentId, token);
 }
 
+// This function gets room stream url.
 export function getRoomStreamUrl(roomId: string, token: string) {
-  const encoded = encodeURIComponent(token);
-  return `${API_BASE}/rooms/${roomId}/stream?token=${encoded}`;
+  return restGetRoomStreamUrl(roomId, token);
 }
 
+// This function subscribes to room documents.
+export function subscribeRoomDocuments(
+  token: string,
+  roomId: string,
+  onDocuments: (documents: DocumentRecord[]) => void,
+  onError?: (error: Error) => void,
+) {
+  return restSubscribeRoomDocuments(token, roomId, onDocuments, onError);
+}
+
+// This function registers.
 export async function register(payload: {
   phone: string;
   email?: string;
@@ -327,266 +352,162 @@ export async function register(payload: {
   fullName: string;
   role: Role;
 }) {
-  return apiRequest<VerificationResponse & { user: AuthUser }>(
-    "/auth/register",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    null,
-  );
+  return restRegister(payload);
 }
 
+// This function logs in.
 export async function login(payload: { identifier: string; password: string }) {
-  return apiRequest<AuthResponse>(
-    "/auth/login",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    null,
-  );
+  return restLogin(payload);
 }
 
+// This function refreshes auth.
+export async function refreshAuth(refreshToken: string) {
+  return restRefreshAuth(refreshToken);
+}
+
+// This function verifies phone.
 export async function verifyPhone(payload: { phone: string; code: string }) {
-  return apiRequest<AuthResponse>(
-    "/auth/verify-phone",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    null,
-  );
+  return restVerifyPhone(payload);
 }
 
+// This function resends verification code.
 export async function resendVerificationCode(payload: { phone: string }) {
-  return apiRequest<VerificationResponse>(
-    "/auth/resend-code",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    null,
-  );
+  return restResendVerificationCode(payload);
 }
 
+// This function gets me.
 export async function getMe(token: string) {
-  return apiRequest<AuthUser>("/me", {}, token);
+  return restGetMe(token);
 }
 
+// This function updates me.
 export async function updateMe(
   token: string,
   payload: { fullName: string; email?: string | null },
 ) {
-  return apiRequest<AuthUser>(
-    "/me/profile",
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
+  return restUpdateMe(token, payload);
 }
 
+// This function changes my password.
 export async function changeMyPassword(
   token: string,
   payload: { currentPassword: string; newPassword: string },
 ) {
-  return apiRequest<void>(
-    "/me/password",
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
+  return restChangeMyPassword(token, payload);
 }
 
+// This function lists rooms.
 export async function listRooms(token: string) {
-  return apiRequest<RoomSummary[]>("/rooms", {}, token);
+  return restListRooms(token);
 }
 
+// This function lists rooms with filters.
 export async function listRoomsWithFilters(
   token: string,
   params?: { search?: string; filter?: "all" | "active" | "closed" },
 ) {
-  const query = new URLSearchParams();
-  if (params?.search?.trim()) query.set("search", params.search.trim());
-  if (params?.filter) query.set("filter", params.filter);
-  const suffix = query.toString() ? `?${query.toString()}` : "";
-  return apiRequest<RoomSummary[]>(`/rooms${suffix}`, {}, token);
+  return restListRoomsWithFilters(token, params);
 }
 
+// This function gets room details.
 export async function getRoomDetails(token: string, roomId: string) {
-  return apiRequest<RoomDetails>(`/rooms/${roomId}`, {}, token);
+  return restGetRoomDetails(token, roomId);
 }
 
+// This function searches suppliers.
 export async function searchSuppliers(token: string, query?: string) {
-  const suffix = query ? `?q=${encodeURIComponent(query)}` : "";
-  return apiRequest<SupplierUser[]>(`/users/suppliers${suffix}`, {}, token);
+  return restSearchSuppliers(token, query);
 }
 
+// This function creates room.
 export async function createRoom(token: string, name: string) {
-  return apiRequest<RoomSummary>(
-    "/rooms",
-    {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    },
-    token,
-  );
+  return restCreateRoom(token, name);
 }
 
+// This function joins room.
 export async function joinRoom(token: string, roomCode: string) {
-  return apiRequest<JoinRoomResponse>(
-    "/rooms/join",
-    {
-      method: "POST",
-      body: JSON.stringify({ roomCode }),
-    },
-    token,
-  );
+  return restJoinRoom(token, roomCode);
 }
 
+// This function lists join requests.
 export async function listJoinRequests(token: string) {
-  return apiRequest<RoomJoinRequest[]>("/join-requests", {}, token);
+  return restListJoinRequests(token);
 }
 
+// This function decides join request.
 export async function decideJoinRequest(
   token: string,
   requestId: string,
   decision: "accept" | "refuse",
 ) {
-  return apiRequest<RoomJoinRequest>(
-    `/join-requests/${requestId}/decision`,
-    {
-      method: "POST",
-      body: JSON.stringify({ decision }),
-    },
-    token,
-  );
+  return restDecideJoinRequest(token, requestId, decision);
 }
 
-export async function updateRoomStatus(
-  token: string,
-  roomId: string,
-  status: RoomStatus,
-) {
-  return apiRequest<{ id: string; status: RoomStatus; name: string; roomCode: string }>(
-    `/rooms/${roomId}/status`,
-    {
-      method: "PUT",
-      body: JSON.stringify({ status }),
-    },
-    token,
-  );
+// This function updates room status.
+export async function updateRoomStatus(token: string, roomId: string, status: RoomStatus) {
+  return restUpdateRoomStatus(token, roomId, status);
 }
 
+// This function lists room members.
 export async function listRoomMembers(token: string, roomId: string) {
-  return apiRequest<RoomMember[]>(`/rooms/${roomId}/members`, {}, token);
+  return restListRoomMembers(token, roomId);
 }
 
+// This function removes room member.
 export async function removeRoomMember(token: string, roomId: string, userId: string) {
-  return apiRequest<void>(
-    `/rooms/${roomId}/members/${userId}`,
-    {
-      method: "DELETE",
-    },
-    token,
-  );
+  return restRemoveRoomMember(token, roomId, userId);
 }
 
+// This function marks room read.
 export async function markRoomRead(token: string, roomId: string) {
-  return apiRequest<void>(
-    `/rooms/${roomId}/read`,
-    {
-      method: "POST",
-    },
-    token,
-  );
+  return restMarkRoomRead(token, roomId);
 }
 
+// This function links supplier.
 export async function linkSupplier(
   token: string,
   roomId: string,
   workerId: string,
   supplierId: string,
 ) {
-  return apiRequest<WorkerSupplierLink>(
-    `/rooms/${roomId}/workers/${workerId}/link-supplier`,
-    {
-      method: "POST",
-      body: JSON.stringify({ supplierId }),
-    },
-    token,
-  );
+  return restLinkSupplier(token, roomId, workerId, supplierId);
 }
 
-export async function addSupplierToRoom(
-  token: string,
-  roomId: string,
-  supplierId: string,
-) {
-  return apiRequest<WorkerSupplierLink>(
-    `/rooms/${roomId}/suppliers`,
-    {
-      method: "POST",
-      body: JSON.stringify({ supplierId }),
-    },
-    token,
-  );
+// This function adds supplier to room.
+export async function addSupplierToRoom(token: string, roomId: string, supplierId: string) {
+  return restAddSupplierToRoom(token, roomId, supplierId);
 }
 
-export async function unlinkRoomSupplier(
-  token: string,
-  roomId: string,
-  supplierId: string,
-) {
-  return apiRequest<void>(
-    `/rooms/${roomId}/suppliers/${supplierId}`,
-    {
-      method: "DELETE",
-    },
-    token,
-  );
+// This function unlinks room supplier.
+export async function unlinkRoomSupplier(token: string, roomId: string, supplierId: string) {
+  return restUnlinkRoomSupplier(token, roomId, supplierId);
 }
 
+// This function lists worker suppliers.
 export async function listWorkerSuppliers(
   token: string,
   roomId: string,
   filters?: { workerId?: string; supplierId?: string },
 ) {
-  const query = new URLSearchParams();
-  if (filters?.workerId) query.set("workerId", filters.workerId);
-  if (filters?.supplierId) query.set("supplierId", filters.supplierId);
-  const suffix = query.toString() ? `?${query.toString()}` : "";
-  return apiRequest<WorkerSupplierLink[]>(
-    `/rooms/${roomId}/worker-suppliers${suffix}`,
-    {},
-    token,
-  );
+  return restListWorkerSuppliers(token, roomId, filters);
 }
 
+// This function lists my worker suppliers.
 export async function listMyWorkerSuppliers(token: string, roomId: string) {
-  return apiRequest<WorkerSupplierLink[]>(
-    `/rooms/${roomId}/worker-suppliers/me`,
-    {},
-    token,
-  );
+  return restListMyWorkerSuppliers(token, roomId);
 }
 
+// This function lists room suppliers.
 export async function listRoomSuppliers(token: string, roomId: string) {
-  return apiRequest<WorkerSupplierLink[]>(
-    `/rooms/${roomId}/suppliers`,
-    {},
-    token,
-  );
+  return restListRoomSuppliers(token, roomId);
 }
 
+// This function gets supplier profile.
 export async function getSupplierProfile(token: string) {
-  return apiRequest<SupplierProfile | null>("/supplier/profile", {}, token);
+  return restGetSupplierProfile(token);
 }
 
+// This function creates or updates supplier profile.
 export async function upsertSupplierProfile(
   token: string,
   payload: {
@@ -599,101 +520,70 @@ export async function upsertSupplierProfile(
     footerNote?: string;
   },
 ) {
-  return apiRequest<SupplierProfile>(
-    "/supplier/profile",
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
+  return restUpsertSupplierProfile(token, payload);
 }
 
+// This function creates document.
 export async function createDocument(token: string, payload: CreateDocumentInput) {
-  return apiRequest<DocumentRecord>(
-    "/documents",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
+  return restCreateDocument(token, payload);
 }
 
+// This function creates room document.
 export async function createRoomDocument(
   token: string,
   roomId: string,
   payload: Omit<CreateDocumentInput, "roomId" | "isPersonal">,
 ) {
-  return apiRequest<DocumentRecord>(
-    `/rooms/${roomId}/documents`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
+  return restCreateRoomDocument(token, roomId, payload);
 }
 
+// This function lists room documents.
 export async function listRoomDocuments(token: string, roomId: string) {
-  return apiRequest<DocumentRecord[]>(`/rooms/${roomId}/documents`, {}, token);
+  return restListRoomDocuments(token, roomId);
 }
 
+// This function lists personal documents.
 export async function listPersonalDocuments(token: string) {
-  return apiRequest<DocumentRecord[]>("/documents/personal", {}, token);
+  return restListPersonalDocuments(token);
 }
 
+// This function lists my documents.
 export async function listMyDocuments(
   token: string,
   scope: "all" | "room" | "personal" = "personal",
 ) {
-  return apiRequest<DocumentRecord[]>(
-    `/me/documents?scope=${encodeURIComponent(scope)}`,
-    {},
-    token,
-  );
+  return restListMyDocuments(token, scope);
 }
 
+// This function creates my document.
 export async function createMyDocument(
   token: string,
   payload: Omit<CreateDocumentInput, "roomId" | "workerId" | "isPersonal">,
 ) {
-  return apiRequest<DocumentRecord>(
-    "/me/documents",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
+  return restCreateMyDocument(token, payload);
 }
 
+// This function gets document.
 export async function getDocument(token: string, documentId: string) {
-  return apiRequest<DocumentRecord>(`/documents/${documentId}`, {}, token);
+  return restGetDocument(token, documentId);
 }
 
+// This function deletes document.
 export async function deleteDocument(token: string, documentId: string) {
-  return apiRequest<void>(
-    `/documents/${documentId}`,
-    {
-      method: "DELETE",
-    },
-    token,
-  );
+  return restDeleteDocument(token, documentId);
 }
 
+// This function gets document share.
 export async function getDocumentShare(token: string, documentId: string) {
-  return apiRequest<SharePayload>(`/documents/${documentId}/share`, {}, token);
+  return restGetDocumentShare(token, documentId);
 }
 
+// This function exports document pdf.
 export async function exportDocumentPdf(token: string, documentId: string) {
-  return apiRequest<{ documentId: string; pdfUrl: string }>(
-    `/documents/${documentId}/export-pdf`,
-    { method: "POST" },
-    token,
-  );
+  return restExportDocumentPdf(token, documentId);
 }
 
+// This function gets analytics overview.
 export async function getAnalyticsOverview(token: string) {
-  return apiRequest<AnalyticsOverview>("/analytics/overview", {}, token);
+  return restGetAnalyticsOverview(token);
 }

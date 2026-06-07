@@ -8,6 +8,7 @@ import { cn } from "./utils";
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
 
+// This type defines the data shape for chart config.
 export type ChartConfig = {
   [k in string]: {
     label?: React.ReactNode;
@@ -18,13 +19,17 @@ export type ChartConfig = {
   );
 };
 
+// This type defines the data shape for chart context props.
 type ChartContextProps = {
   config: ChartConfig;
 };
 
+// This component renders the chart context UI.
 const ChartContext = React.createContext<ChartContextProps | null>(null);
 
+// This function runs chart.
 function useChart() {
+  // This variable stores the context value.
   const context = React.useContext(ChartContext);
 
   if (!context) {
@@ -34,6 +39,7 @@ function useChart() {
   return context;
 }
 
+// This component renders the chart container UI.
 function ChartContainer({
   id,
   className,
@@ -46,7 +52,9 @@ function ChartContainer({
     typeof RechartsPrimitive.ResponsiveContainer
   >["children"];
 }) {
+  // This variable stores the unique id value.
   const uniqueId = React.useId();
+  // This variable stores the chart id value.
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
 
   return (
@@ -69,7 +77,9 @@ function ChartContainer({
   );
 }
 
+// This component renders the chart style UI.
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  // This variable stores the color config value.
   const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme || config.color,
   );
@@ -87,6 +97,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
+    // This variable stores the color value.
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color;
@@ -102,8 +113,10 @@ ${colorConfig
   );
 };
 
+// This component renders the chart tooltip UI.
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
+// This component renders the chart tooltip content UI.
 function ChartTooltipContent({
   active,
   payload,
@@ -128,14 +141,19 @@ function ChartTooltipContent({
   }) {
   const { config } = useChart();
 
+  // This memoized value keeps the computed tooltip label result.
   const tooltipLabel = React.useMemo(() => {
     if (hideLabel || !payload?.length) {
       return null;
     }
 
+    // This variable stores the item value.
     const [item] = payload;
+    // This variable stores the key value.
     const key = `${labelKey || item?.dataKey || item?.name || "value"}`;
+    // This variable stores the item config value.
     const itemConfig = getPayloadConfigFromPayload(config, item, key);
+    // This variable stores the value value.
     const value =
       !labelKey && typeof label === "string"
         ? config[label as keyof typeof config]?.label || label
@@ -168,6 +186,7 @@ function ChartTooltipContent({
     return null;
   }
 
+  // This variable stores the nest label value.
   const nestLabel = payload.length === 1 && indicator !== "dot";
 
   return (
@@ -180,8 +199,11 @@ function ChartTooltipContent({
       {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
         {payload.map((item, index) => {
+          // This variable stores the key value.
           const key = `${nameKey || item.name || item.dataKey || "value"}`;
+          // This variable stores the item config value.
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
+          // This variable stores the indicator color value.
           const indicatorColor = color || item.payload.fill || item.color;
 
           return (
@@ -248,8 +270,10 @@ function ChartTooltipContent({
   );
 }
 
+// This component renders the chart legend UI.
 const ChartLegend = RechartsPrimitive.Legend;
 
+// This component renders the chart legend content UI.
 function ChartLegendContent({
   className,
   hideIcon = false,
@@ -276,7 +300,9 @@ function ChartLegendContent({
       )}
     >
       {payload.map((item) => {
+        // This variable stores the key value.
         const key = `${nameKey || item.dataKey || "value"}`;
+        // This variable stores the item config value.
         const itemConfig = getPayloadConfigFromPayload(config, item, key);
 
         return (
@@ -314,6 +340,7 @@ function getPayloadConfigFromPayload(
     return undefined;
   }
 
+  // This variable stores the payload payload value.
   const payloadPayload =
     "payload" in payload &&
     typeof payload.payload === "object" &&
@@ -321,6 +348,7 @@ function getPayloadConfigFromPayload(
       ? payload.payload
       : undefined;
 
+  // This variable stores the config label key value.
   let configLabelKey: string = key;
 
   if (

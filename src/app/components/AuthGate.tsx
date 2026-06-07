@@ -3,15 +3,19 @@ import boonLogo from "../../assets/boon.png";
 import type { AuthResponse, Role, VerificationResponse } from "../api";
 import { login, register, resendVerificationCode, verifyPhone } from "../api";
 
+// This type defines the data shape for language.
 type Language = "en" | "fr" | "ar";
 
+// This type defines the data shape for props.
 type Props = {
   language: Language;
   onAuthenticated: (auth: AuthResponse) => void;
 };
 
+// This type defines the data shape for auth mode.
 type AuthMode = "login" | "register" | "verify";
 
+// This type defines the data shape for copy shape.
 type CopyShape = {
   badge: string;
   headline: string;
@@ -53,12 +57,13 @@ type CopyShape = {
   roleSupplier: string;
 };
 
+// This component renders the copy UI.
 const COPY: Record<Language, CopyShape> = {
   en: {
     badge: "BOON",
     headline: "Secure invoice rooms for construction teams",
     description:
-      "Create a real account, verify the phone number, then enter the BOON workspace.",
+      "Create your BOON account, verify your phone, then enter the BOON workspace.",
     login: "Sign in",
     register: "Create",
     verify: "Verify",
@@ -71,7 +76,7 @@ const COPY: Record<Language, CopyShape> = {
     email: "Email (optional)",
     emailPlaceholder: "contact@store.com",
     password: "Password",
-    passwordPlaceholder: "At least 10 chars, upper/lower/number/symbol",
+    passwordPlaceholder: "At least 10 chars with upper/lower/number",
     confirmPassword: "Confirm password",
     confirmPasswordPlaceholder: "Repeat the password",
     role: "Role",
@@ -100,7 +105,7 @@ const COPY: Record<Language, CopyShape> = {
     badge: "BOON",
     headline: "Rooms securisees pour factures et bons de chantier",
     description:
-      "Creez un vrai compte, verifiez le numero, puis entrez dans l'espace BOON.",
+      "Creez votre compte BOON, verifiez le telephone, puis entrez dans l'espace BOON.",
     login: "Connexion",
     register: "Creer",
     verify: "Verifier",
@@ -113,7 +118,7 @@ const COPY: Record<Language, CopyShape> = {
     email: "Email (optionnel)",
     emailPlaceholder: "contact@store.com",
     password: "Mot de passe",
-    passwordPlaceholder: "10 caracteres min, maj/min/chiffre/symbole",
+    passwordPlaceholder: "10 caracteres min, maj/min/chiffre",
     confirmPassword: "Confirmer le mot de passe",
     confirmPasswordPlaceholder: "Repetez le mot de passe",
     role: "Role",
@@ -142,7 +147,7 @@ const COPY: Record<Language, CopyShape> = {
     badge: "BOON",
     headline: "غرف فواتير وبونات آمنة لفرق البناء",
     description:
-      "أنشئ حسابا حقيقيا، أكد رقم الهاتف، ثم ادخل إلى مساحة BOON.",
+      "أنشئ حساب BOON ثم أكد الهاتف وادخل إلى مساحة BOON.",
     login: "تسجيل الدخول",
     register: "إنشاء حساب",
     verify: "تأكيد",
@@ -155,7 +160,7 @@ const COPY: Record<Language, CopyShape> = {
     email: "البريد الإلكتروني (اختياري)",
     emailPlaceholder: "contact@store.com",
     password: "كلمة المرور",
-    passwordPlaceholder: "10 أحرف على الأقل مع كبير وصغير ورقم ورمز",
+    passwordPlaceholder: "10 أحرف على الأقل مع كبير وصغير ورقم",
     confirmPassword: "تأكيد كلمة المرور",
     confirmPasswordPlaceholder: "أعد كتابة كلمة المرور",
     role: "الدور",
@@ -182,8 +187,10 @@ const COPY: Record<Language, CopyShape> = {
   },
 };
 
+// This function runs verification payload.
 function extractVerificationPayload(error: unknown): VerificationResponse | null {
   if (!(error instanceof Error)) return null;
+  // This variable stores the payload value.
   const payload = (error as Error & { payload?: Record<string, unknown> }).payload;
   if (!payload || payload.verificationRequired !== true) return null;
 
@@ -196,28 +203,45 @@ function extractVerificationPayload(error: unknown): VerificationResponse | null
   };
 }
 
+// This component renders the auth gate UI.
 export function AuthGate({ language, onAuthenticated }: Props) {
+  // This memoized value keeps the computed copy result.
   const copy = useMemo(() => COPY[language], [language]);
+  // This variable stores the mode value.
   const [mode, setMode] = useState<AuthMode>("login");
+  // This state stores the current identifier value.
   const [identifier, setIdentifier] = useState("");
+  // This state stores the current phone value.
   const [phone, setPhone] = useState("");
+  // This state stores the current email value.
   const [email, setEmail] = useState("");
+  // This state stores the current password value.
   const [password, setPassword] = useState("");
+  // This state stores the current confirm password value.
   const [confirmPassword, setConfirmPassword] = useState("");
+  // This state stores the current full name value.
   const [fullName, setFullName] = useState("");
+  // This variable stores the role value.
   const [role, setRole] = useState<Role>("SUPPLIER");
+  // This variable stores the verification value.
   const [verification, setVerification] = useState<VerificationResponse | null>(null);
+  // This state stores the current code value.
   const [code, setCode] = useState("");
+  // This variable stores the error value.
   const [error, setError] = useState<string | null>(null);
+  // This variable stores the notice value.
   const [notice, setNotice] = useState<string | null>(null);
+  // This state stores the current loading value.
   const [loading, setLoading] = useState(false);
 
+  // This variable stores the role options value.
   const roleOptions: Array<{ value: Role; label: string }> = [
     { value: "OWNER", label: copy.roleOwner },
     { value: "WORKER", label: copy.roleWorker },
     { value: "SUPPLIER", label: copy.roleSupplier },
   ];
 
+  // This function handles login.
   async function handleLogin(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -225,9 +249,11 @@ export function AuthGate({ language, onAuthenticated }: Props) {
     setLoading(true);
 
     try {
+      // This variable stores the auth value.
       const auth = await login({ identifier, password });
       onAuthenticated(auth);
     } catch (submitError) {
+      // This variable stores the verification payload value.
       const verificationPayload = extractVerificationPayload(submitError);
       if (verificationPayload) {
         setVerification(verificationPayload);
@@ -244,6 +270,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
     }
   }
 
+  // This function handles register.
   async function handleRegister(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -256,6 +283,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
 
     setLoading(true);
     try {
+      // This variable stores the response value.
       const response = await register({
         phone,
         email: email.trim() || undefined,
@@ -263,6 +291,10 @@ export function AuthGate({ language, onAuthenticated }: Props) {
         fullName,
         role,
       });
+      if ("token" in response) {
+        onAuthenticated(response);
+        return;
+      }
       setVerification(response);
       setPhone(response.phone);
       setCode("");
@@ -277,6 +309,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
     }
   }
 
+  // This function handles verify.
   async function handleVerify(event: React.FormEvent) {
     event.preventDefault();
     if (!phone || !code) return;
@@ -285,6 +318,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
     setNotice(null);
     setLoading(true);
     try {
+      // This variable stores the auth value.
       const auth = await verifyPhone({ phone, code });
       onAuthenticated(auth);
     } catch (submitError) {
@@ -296,12 +330,14 @@ export function AuthGate({ language, onAuthenticated }: Props) {
     }
   }
 
+  // This function handles resend code.
   async function handleResendCode() {
     if (!phone) return;
     setError(null);
     setNotice(null);
     setLoading(true);
     try {
+      // This variable stores the next verification value.
       const nextVerification = await resendVerificationCode({ phone });
       setVerification(nextVerification);
       setNotice(copy.resendNotice);
@@ -314,14 +350,17 @@ export function AuthGate({ language, onAuthenticated }: Props) {
     }
   }
 
+  // This variable stores the verify meta value.
   const verifyMeta = verification?.maskedPhone
     ? `${copy.verificationHint} ${verification.maskedPhone}`
     : null;
+  // This variable stores the auth modes value.
+  const authModes = ["login", "register"] as AuthMode[];
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(246,195,65,0.16),_transparent_38%),linear-gradient(180deg,_var(--background),color-mix(in_oklab,_var(--background)_82%,black))] px-4 py-8 text-foreground">
+    <div className="min-h-screen bg-background px-4 py-8 text-foreground">
       <div className="mx-auto w-full max-w-md">
-        <div className="mb-7 rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,#f6c341,#f58a2a_58%,#d95a1f)] p-5 text-black shadow-[0_30px_80px_rgba(0,0,0,0.22)]">
+        <div className="mb-7 rounded-[28px] border border-primary/20 bg-primary p-5 text-primary-foreground shadow-[0_30px_80px_rgba(9,22,163,0.24)]">
           <div className="flex items-center gap-3">
             <img src={boonLogo} alt="BOON" className="h-12 w-12 rounded-2xl bg-white/80 p-1.5" />
             <div>
@@ -329,12 +368,12 @@ export function AuthGate({ language, onAuthenticated }: Props) {
               <h1 className="mt-1 text-2xl font-black leading-tight">{copy.headline}</h1>
             </div>
           </div>
-          <p className="mt-3 text-sm font-medium text-black/80">{copy.description}</p>
+          <p className="mt-3 text-sm font-medium text-white/86">{copy.description}</p>
         </div>
 
         <div className="boon-surface p-5 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
           <div className="mb-4 grid grid-cols-3 rounded-2xl bg-muted p-1 text-sm">
-            {(["login", "register", "verify"] as AuthMode[]).map((value) => (
+            {authModes.map((value) => (
               <button
                 key={value}
                 type="button"
@@ -369,6 +408,9 @@ export function AuthGate({ language, onAuthenticated }: Props) {
               <p>{verifyMeta}</p>
               {verification?.expiresInSeconds ? (
                 <p className="mt-1">{Math.floor(verification.expiresInSeconds / 60)} min</p>
+              ) : null}
+              {verification?.devCode ? (
+                <p className="mt-2 font-semibold text-foreground">Dev code: {verification.devCode}</p>
               ) : null}
             </div>
           )}
@@ -483,7 +525,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
                       onClick={() => setRole(option.value)}
                       className={`rounded-2xl border px-2 py-3 text-xs font-bold transition ${
                         role === option.value
-                          ? "border-amber-400 bg-amber-300 text-black"
+                          ? "border-primary bg-primary text-primary-foreground"
                           : "border-border bg-background text-foreground"
                       }`}
                     >
@@ -496,7 +538,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-2xl bg-amber-400 px-4 py-3 text-sm font-black text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                className="boon-primary-action w-full rounded-2xl px-4 py-3 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? copy.loading : copy.createAccount}
               </button>

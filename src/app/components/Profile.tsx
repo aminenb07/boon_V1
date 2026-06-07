@@ -14,9 +14,12 @@ import {
   SelectValue,
 } from "./ui/select";
 
+// This type defines the data shape for language.
 export type Language = "en" | "fr" | "ar";
+// This type defines the data shape for theme mode.
 export type ThemeMode = "light" | "dark" | "system";
 
+// This type defines the data shape for texts.
 type Texts = {
   title: string;
   subtitle: string;
@@ -53,6 +56,7 @@ type Texts = {
   saveStoreProfile: string;
 };
 
+// This type defines the data shape for props.
 type Props = {
   user: AuthUser;
   language: Language;
@@ -84,6 +88,7 @@ type Props = {
   onLogout: () => void;
 };
 
+// This component renders the profile UI.
 export function Profile({
   user,
   language,
@@ -102,17 +107,29 @@ export function Profile({
   onChangePassword,
   onLogout,
 }: Props) {
+  // This state stores the current full name value.
   const [fullName, setFullName] = useState(user.fullName);
+  // This state stores the current email value.
   const [email, setEmail] = useState(user.email ?? "");
+  // This state stores the current current password value.
   const [currentPassword, setCurrentPassword] = useState("");
+  // This state stores the current new password value.
   const [newPassword, setNewPassword] = useState("");
+  // This state stores the current confirm password value.
   const [confirmPassword, setConfirmPassword] = useState("");
+  // This state stores the current store name value.
   const [storeName, setStoreName] = useState("");
+  // This state stores the current store phone value.
   const [storePhone, setStorePhone] = useState("");
+  // This state stores the current store address value.
   const [storeAddress, setStoreAddress] = useState("");
+  // This state stores the current store ice value.
   const [storeIce, setStoreIce] = useState("");
+  // This state stores the current store rc value.
   const [storeRc, setStoreRc] = useState("");
+  // This state stores the current store footer value.
   const [storeFooter, setStoreFooter] = useState("");
+  // This state stores the current store logo url value.
   const [storeLogoUrl, setStoreLogoUrl] = useState("");
 
   useEffect(() => {
@@ -130,16 +147,21 @@ export function Profile({
     setStoreLogoUrl(supplierProfile?.logoUrl ?? "");
   }, [supplierProfile, user.phone]);
 
+  // This memoized value keeps the computed can submit profile result.
   const canSubmitProfile = useMemo(() => fullName.trim().length > 0, [fullName]);
+  // This variable stores the verification label value.
   const verificationLabel = user.phoneVerifiedAt ? texts.verified : texts.notVerified;
+  // This variable stores the store logo preview value.
   const storeLogoPreview = storeLogoUrl || boonLogo;
 
+  // This function handles profile submit.
   async function handleProfileSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmitProfile) return;
     await onSaveProfile({ fullName: fullName.trim(), email: email.trim() || null });
   }
 
+  // This function handles password submit.
   async function handlePasswordSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!currentPassword || !newPassword || !confirmPassword) return;
@@ -153,6 +175,7 @@ export function Profile({
     setConfirmPassword("");
   }
 
+  // This function handles store profile submit.
   async function handleStoreProfileSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!storeName.trim() || !storePhone.trim() || !storeAddress.trim()) return;
@@ -174,7 +197,7 @@ export function Profile({
         <p className="mt-1 text-muted-foreground">{texts.subtitle}</p>
       </div>
 
-      <Card className="overflow-hidden border-0 bg-[linear-gradient(135deg,#f6c341,#f58a2a_58%,#d95a1f)] text-black shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+      <Card className="overflow-hidden border-0 bg-primary text-primary-foreground shadow-[0_24px_80px_rgba(9,22,163,0.22)]">
         <CardContent className="pt-6">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20">
@@ -190,7 +213,7 @@ export function Profile({
       </Card>
 
       {notice && (
-        <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300">
+        <p className="boon-success-note">
           {notice}
         </p>
       )}
@@ -203,7 +226,7 @@ export function Profile({
       <Card className="boon-surface border-0 shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-amber-500" />
+            <User className="h-5 w-5 text-primary" />
             {texts.profileCard}
           </CardTitle>
         </CardHeader>
@@ -239,7 +262,7 @@ export function Profile({
                   className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
                     user.phoneVerifiedAt
                       ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                      : "bg-blue-100 text-blue-800 dark:bg-zinc-800 dark:text-zinc-200"
                   }`}
                 >
                   {user.phoneVerifiedAt ? texts.verified : texts.notVerified}
@@ -261,7 +284,7 @@ export function Profile({
         <Card className="boon-surface border-0 shadow-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Store className="h-5 w-5 text-amber-500" />
+              <Store className="h-5 w-5 text-primary" />
               {texts.storeProfileCard}
             </CardTitle>
           </CardHeader>
@@ -355,7 +378,7 @@ export function Profile({
       <Card className="boon-surface border-0 shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-amber-500" />
+            <Globe className="h-5 w-5 text-primary" />
             {texts.languageCard}
           </CardTitle>
         </CardHeader>
@@ -377,7 +400,7 @@ export function Profile({
       <Card className="boon-surface border-0 shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Moon className="h-5 w-5 text-amber-500" />
+            <Moon className="h-5 w-5 text-primary" />
             {texts.themeCard}
           </CardTitle>
         </CardHeader>
@@ -409,7 +432,7 @@ export function Profile({
       <Card className="boon-surface border-0 shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-amber-500" />
+            <Lock className="h-5 w-5 text-primary" />
             {texts.securityCard}
           </CardTitle>
         </CardHeader>

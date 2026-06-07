@@ -3,6 +3,8 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
+const backendTarget = process.env.VITE_DEV_PROXY_TARGET || 'http://127.0.0.1:8000'
+
 export default defineConfig({
   plugins: [
     // The React and Tailwind plugins are both required for Make, even if
@@ -21,10 +23,13 @@ export default defineConfig({
     transformer: 'postcss',
   },
   server: {
+    host: '0.0.0.0',
+    allowedHosts: ['.devtunnels.ms'],
     proxy: {
       "/api": {
-        target: "http://localhost:4000",
+        target: backendTarget,
         changeOrigin: true,
+        secure: false,
       },
     },
   },

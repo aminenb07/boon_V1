@@ -9,12 +9,14 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+// This interface defines the data shape for bottom nav props.
 interface BottomNavProps {
   activeTab: string;
   tabs: BottomTab[];
   onTabChange: (tab: string) => void;
 }
 
+// This type defines the data shape for bottom tab id.
 export type BottomTabId =
   | "dashboard"
   | "rooms"
@@ -24,12 +26,14 @@ export type BottomTabId =
   | "reports"
   | "profile";
 
+// This type defines the data shape for bottom tab.
 export type BottomTab = {
   id: BottomTabId;
   icon: LucideIcon;
   label: string;
 };
 
+// This component renders the tab icons UI.
 export const TAB_ICONS: Record<BottomTabId, LucideIcon> = {
   dashboard: Home,
   rooms: MessageCircle,
@@ -40,28 +44,31 @@ export const TAB_ICONS: Record<BottomTabId, LucideIcon> = {
   profile: User,
 };
 
+// This component renders the bottom nav UI.
 export function BottomNav({ activeTab, tabs, onTabChange }: BottomNavProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 md:bottom-5 md:left-1/2 md:right-auto md:w-[min(92vw,720px)] md:-translate-x-1/2">
-      <div className="border-t border-border bg-card/95 px-2 py-2 backdrop-blur md:rounded-3xl md:border md:shadow-[0_18px_60px_rgba(0,0,0,0.22)]">
+      <div className="border-t border-border bg-card/95 px-2 py-2 backdrop-blur md:rounded-3xl md:border md:shadow-[0_18px_60px_rgba(90,50,8,0.18)]">
         <div className="mx-auto max-w-lg">
           <div className="flex items-center justify-around">
             {tabs.map((tab) => {
+              // This component renders the icon UI.
               const Icon = tab.icon;
+              // This variable tracks whether is active is true.
               const isActive = activeTab === tab.id;
 
               return (
                 <button
                   key={tab.id}
                   onClick={() => onTabChange(tab.id)}
-                  className={`flex flex-col items-center gap-1 rounded-xl px-3 py-2 transition-colors ${
+                  className={`flex flex-col items-center gap-1 rounded-2xl px-3 py-2 transition-all ${
                     isActive
-                      ? "bg-muted text-foreground"
+                      ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Icon className={`h-6 w-6 ${isActive ? "text-amber-500" : ""}`} />
-                  <span className="text-xs font-medium">{tab.label}</span>
+                  <Icon className="h-6 w-6" />
+                  <span className="text-xs font-black">{tab.label}</span>
                 </button>
               );
             })}

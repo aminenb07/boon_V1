@@ -1,27 +1,41 @@
 services:
   - type: web
     name: boon-api
-    runtime: node
+    runtime: docker
     rootDir: backend
+    plan: free
     healthCheckPath: /api/health
-    buildCommand: npm ci && npm run env:check && npm run prisma:generate && npm run build
-    startCommand: npm start
+    autoDeploy: true
     envVars:
-      - key: NODE_ENV
+      - key: APP_NAME
+        value: BOON API
+      - key: APP_ENV
         value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: DATABASE_AUTH_TOKEN
-        sync: false
-      - key: JWT_SECRET
-        sync: false
-      - key: PUBLIC_API_BASE_URL
-        sync: false
-      - key: CORS_ORIGIN
-        sync: false
-      - key: SMS_WEBHOOK_URL
-        sync: false
-      - key: SMS_WEBHOOK_TOKEN
-        sync: false
-      - key: ALLOW_DEV_VERIFICATION_CODE
+      - key: APP_DEBUG
         value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: warning
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: boon-db
+          property: connectionString
+      - key: SESSION_DRIVER
+        value: cookie
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: FILESYSTEM_DISK
+        value: local
+
+databases:
+  - name: boon-db
+    plan: free

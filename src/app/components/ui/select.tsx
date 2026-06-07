@@ -10,24 +10,28 @@ import {
 
 import { cn } from "./utils";
 
+// This component renders the select UI.
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
   return <SelectPrimitive.Root data-slot="select" {...props} />;
 }
 
+// This component renders the select group UI.
 function SelectGroup({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Group>) {
   return <SelectPrimitive.Group data-slot="select-group" {...props} />;
 }
 
+// This component renders the select value UI.
 function SelectValue({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
   return <SelectPrimitive.Value data-slot="select-value" {...props} />;
 }
 
+// This component renders the select trigger UI.
 function SelectTrigger({
   className,
   size = "default",
@@ -54,6 +58,7 @@ function SelectTrigger({
   );
 }
 
+// This component renders the select content UI.
 function SelectContent({
   className,
   children,
@@ -89,6 +94,7 @@ function SelectContent({
   );
 }
 
+// This component renders the select label UI.
 function SelectLabel({
   className,
   ...props
@@ -102,6 +108,7 @@ function SelectLabel({
   );
 }
 
+// This component renders the select item UI.
 function SelectItem({
   className,
   children,
@@ -126,6 +133,7 @@ function SelectItem({
   );
 }
 
+// This component renders the select separator UI.
 function SelectSeparator({
   className,
   ...props
@@ -139,6 +147,7 @@ function SelectSeparator({
   );
 }
 
+// This component renders the select scroll up button UI.
 function SelectScrollUpButton({
   className,
   ...props
@@ -157,6 +166,7 @@ function SelectScrollUpButton({
   );
 }
 
+// This component renders the select scroll down button UI.
 function SelectScrollDownButton({
   className,
   ...props

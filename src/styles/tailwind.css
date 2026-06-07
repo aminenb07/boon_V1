@@ -1,4 +1,7 @@
+/* This import loads Tailwind CSS while keeping source scanning explicit. */
 @import 'tailwindcss' source(none);
+/* This source rule tells Tailwind where React and TypeScript class names live. */
 @source '../**/*.{js,ts,jsx,tsx}';
 
+/* This import loads animation utility classes used by the UI. */
 @import 'tw-animate-css';

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   createDocument,
   deleteDocument,
-  getDocumentPdfUrl,
+  exportDocumentPdf,
   getDocumentShare,
   listPersonalDocuments,
   listRoomDocuments,
@@ -12,8 +12,10 @@ import {
 import type { DocumentRecord, DocumentType, Role, RoomSummary } from "../api";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 
+// This type defines the data shape for language.
 type Language = "en" | "fr" | "ar";
 
+// This type defines the data shape for props.
 type Props = {
   token: string;
   role: Role;
@@ -35,8 +37,11 @@ type Props = {
   };
 };
 
+// This type defines the data shape for destination.
 type Destination = "personal" | "room";
+// This type defines the data shape for builder mode.
 type BuilderMode = "quick" | "items";
+// This type defines the data shape for draft item.
 type DraftItem = {
   id: string;
   productName: string;
@@ -45,6 +50,7 @@ type DraftItem = {
   unitPrice: string;
 };
 
+// This component renders the extra copy UI.
 const EXTRA_COPY = {
   en: {
     destinationPersonal: "Personal",
@@ -135,6 +141,7 @@ const EXTRA_COPY = {
   },
 } as const;
 
+// This function runs.
 function money(value: number, currency: string) {
   return new Intl.NumberFormat("fr-MA", {
     style: "currency",
@@ -142,6 +149,7 @@ function money(value: number, currency: string) {
   }).format(value);
 }
 
+// This function runs item.
 function makeItem(): DraftItem {
   return {
     id: crypto.randomUUID(),
@@ -152,31 +160,51 @@ function makeItem(): DraftItem {
   };
 }
 
+// This component renders the boon center UI.
 export function BoonCenter({ token, role, userId, language, labels }: Props) {
+  // This variable stores the copy value.
   const copy = EXTRA_COPY[language];
+  // This variable stores the rooms value.
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
+  // This state stores the current room id value.
   const [roomId, setRoomId] = useState("");
+  // This variable stores the destination value.
   const [destination, setDestination] = useState<Destination>("personal");
+  // This variable stores the builder mode value.
   const [builderMode, setBuilderMode] = useState<BuilderMode>("items");
+  // This variable stores the doc type value.
   const [docType, setDocType] = useState<DocumentType>("RECEIPT");
+  // This variable stores the personal docs value.
   const [personalDocs, setPersonalDocs] = useState<DocumentRecord[]>([]);
+  // This variable stores the room docs value.
   const [roomDocs, setRoomDocs] = useState<DocumentRecord[]>([]);
+  // This state stores the current amount value.
   const [amount, setAmount] = useState("");
+  // This state stores the current category value.
   const [category, setCategory] = useState("");
+  // This state stores the current note value.
   const [note, setNote] = useState("");
+  // This variable stores the items value.
   const [items, setItems] = useState<DraftItem[]>([makeItem()]);
+  // This variable stores the error value.
   const [error, setError] = useState<string | null>(null);
+  // This variable stores the notice value.
   const [notice, setNotice] = useState<string | null>(null);
+  // This state stores the current loading value.
   const [loading, setLoading] = useState(false);
+  // This variable stores the selected document value.
   const [selectedDocument, setSelectedDocument] = useState<DocumentRecord | null>(null);
 
+  // This memoized value keeps the computed selected room result.
   const selectedRoom = useMemo(
     () => rooms.find((room) => room.id === roomId) ?? null,
     [roomId, rooms],
   );
 
+  // This variable stores the selected room closed value.
   const selectedRoomClosed = selectedRoom?.status === "CLOSED";
 
+  // This memoized value keeps the computed parsed items result.
   const parsedItems = useMemo(
     () =>
       items
@@ -197,22 +225,27 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
     [items],
   );
 
+  // This memoized value keeps the computed items total result.
   const itemsTotal = useMemo(
     () => parsedItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0),
     [parsedItems],
   );
 
+  // This function refreshes lists.
   async function refreshLists(activeRoomId?: string) {
+    // This variable stores the next rooms value.
     const nextRooms = await listRooms(token);
     setRooms(nextRooms);
 
+    // This variable stores the current room id value.
     const currentRoomId = activeRoomId ?? roomId;
     if (role === "SUPPLIER") {
+      // This variable stores the personal value.
       const personal = await listPersonalDocuments(token);
       setPersonalDocs(personal);
     }
-
     if (currentRoomId) {
+      // This variable stores the docs value.
       const docs = await listRoomDocuments(token, currentRoomId);
       setRoomDocs(docs);
     } else {
@@ -228,7 +261,7 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [copy.loadFailed, token, role]);
+  }, [copy.loadFailed, token, role, userId]);
 
   useEffect(() => {
     if (!roomId) {
@@ -236,28 +269,34 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
       return;
     }
     listRoomDocuments(token, roomId)
-      .then((docs) => setRoomDocs(docs))
+      .then((docs) => {
+        setRoomDocs(docs);
+      })
       .catch((loadError) => {
         setError(loadError instanceof Error ? loadError.message : copy.loadRoomFailed);
       });
-  }, [copy.loadRoomFailed, roomId, token]);
+  }, [copy.loadRoomFailed, roomId, token, userId]);
 
+  // This function updates item.
   function updateItem(id: string, field: keyof DraftItem, value: string) {
     setItems((current) =>
       current.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
     );
   }
 
+  // This function adds item.
   function addItem() {
     setItems((current) => [...current, makeItem()]);
   }
 
+  // This function removes item.
   function removeItem(id: string) {
     setItems((current) =>
       current.length === 1 ? [makeItem()] : current.filter((item) => item.id !== id),
     );
   }
 
+  // This function handles create.
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
     if (role !== "SUPPLIER") return;
@@ -265,7 +304,9 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
     setError(null);
     setNotice(null);
 
+    // This variable stores the use items value.
     const useItems = builderMode === "items" && parsedItems.length > 0;
+    // This variable stores the amount number value.
     const amountNumber = Number(amount);
 
     if (!useItems && (!Number.isFinite(amountNumber) || amountNumber <= 0)) {
@@ -274,6 +315,7 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
     }
 
     try {
+      // This variable stores the payload value.
       const payload = {
         type: docType,
         category:
@@ -305,7 +347,9 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
           return;
         }
 
+        // This variable stores the links value.
         const links = await listWorkerSuppliers(token, roomId);
+        // This variable stores the own value.
         const own = links.find((entry) => entry.supplierId === userId);
         if (!own) {
           setError(copy.noWorkerLink);
@@ -337,12 +381,24 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
     }
   }
 
+  // This function handles share.
   async function handleShare(doc: DocumentRecord) {
-    const popup = window.open("", "_blank");
+    // This variable stores the popup value.
+    const popup = typeof navigator.share === "function"
+      ? null
+      : window.open("about:blank", "_blank", "noopener,noreferrer");
     try {
+      // This variable stores the result value.
       const result = await getDocumentShare(token, doc.id);
+      if (typeof navigator.share === "function") {
+        await navigator.share({
+          title: doc.category || doc.type,
+          text: result.message || `${doc.category || doc.type} - ${money(doc.grandTotal, doc.currency)}`,
+        });
+        return;
+      }
       if (popup) {
-        popup.location.href = result.whatsappUrl;
+        popup.location.replace(result.whatsappUrl);
       } else {
         window.location.href = result.whatsappUrl;
       }
@@ -352,11 +408,25 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
     }
   }
 
-  function handlePdf(doc: DocumentRecord) {
-    const url = getDocumentPdfUrl(doc.id, token);
-    window.open(url, "_blank", "noopener,noreferrer");
+  // This function handles pdf.
+  async function handlePdf(doc: DocumentRecord) {
+    // This variable stores the popup value.
+    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+    try {
+      // This variable stores the result value.
+      const result = await exportDocumentPdf(token, doc.id);
+      if (popup) {
+        popup.location.replace(result.pdfUrl);
+      } else {
+        window.location.href = result.pdfUrl;
+      }
+    } catch (pdfError) {
+      popup?.close();
+      setError(pdfError instanceof Error ? pdfError.message : labels.pdf);
+    }
   }
 
+  // This function handles delete.
   async function handleDelete(doc: DocumentRecord) {
     try {
       await deleteDocument(token, doc.id);
@@ -381,7 +451,7 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
         </p>
       )}
       {notice && (
-        <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300">
+        <p className="boon-success-note">
           {notice}
         </p>
       )}
@@ -455,7 +525,7 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
                 ))}
               </select>
               {selectedRoomClosed && (
-                <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                <p className="mt-2 text-xs font-semibold text-primary">
                   {copy.roomClosed}
                 </p>
               )}
@@ -493,8 +563,11 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
           ) : (
             <div className="boon-subsurface space-y-3 p-3">
               {items.map((item, index) => {
+                // This variable stores the qty value.
                 const qty = Number(item.qty);
+                // This variable stores the unit price value.
                 const unitPrice = Number(item.unitPrice);
+                // This variable stores the line total value.
                 const lineTotal =
                   Number.isFinite(qty) && Number.isFinite(unitPrice)
                     ? qty * unitPrice
@@ -579,7 +652,7 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
           )}
 
           <button
-            className="w-full rounded-2xl bg-amber-400 py-3 text-sm font-black text-black hover:bg-amber-300 disabled:opacity-60"
+            className="boon-primary-action w-full rounded-2xl py-3 text-sm font-black disabled:opacity-60"
             disabled={destination === "room" && selectedRoomClosed}
           >
             {destination === "room" ? copy.saveAndSend : labels.createPersonal}
@@ -631,7 +704,7 @@ export function BoonCenter({ token, role, userId, language, labels }: Props) {
                 <p className="font-semibold">
                   {doc.type} - {money(doc.grandTotal, doc.currency)}
                 </p>
-                <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-700 dark:border dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-200">
+                <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] font-semibold text-blue-800 dark:border dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                   {copy.destinationPersonal}
                 </span>
               </div>

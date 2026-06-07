@@ -1,40 +1,45 @@
-FROM node:20-slim AS deps
+FROM php:8.3-apache
 
-WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        libonig-dev \
+        libpq-dev \
+        libzip-dev \
+    && docker-php-ext-install \
+        bcmath \
+        mbstring \
+        pdo_mysql \
+        pdo_pgsql \
+        zip \
+    && a2enmod rewrite headers \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
-RUN npm ci
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY docker/php-production.ini /usr/local/etc/php/conf.d/zz-boon-production.ini
 
-COPY prisma ./prisma
-RUN npm run prisma:generate
+WORKDIR /var/www/html
 
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --prefer-dist \
+    --no-interaction \
+    --no-progress \
+    --no-scripts \
+    --optimize-autoloader
 
-FROM node:20-slim AS build
+COPY . .
 
-WORKDIR /app
+RUN composer dump-autoload --optimize \
+    && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf /etc/apache2/apache2.conf \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R ug+rw storage bootstrap/cache
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/prisma ./prisma
-COPY package*.json ./
-COPY tsconfig.json ./
-COPY scripts ./scripts
-COPY src ./src
-COPY public ./public
-
-RUN npm run build && npm prune --omit=dev
-
-
-FROM node:20-slim AS runtime
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-COPY --from=build /app/package*.json ./
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/public ./public
-
-EXPOSE 8080
-
-CMD ["npm", "start"]
+CMD sed -i "s/Listen 80/Listen ${PORT:-10000}/" /etc/apache2/ports.conf \
+    && sed -i "s/:80>/:${PORT:-10000}>/" /etc/apache2/sites-available/000-default.conf \
+    && php artisan config:clear \
+    && php artisan migrate --force \
+    && php artisan config:cache \
+    && apache2-foreground

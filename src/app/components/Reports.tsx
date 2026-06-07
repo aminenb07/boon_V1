@@ -18,15 +18,19 @@ import type { AnalyticsOverview } from "../api";
 import { getAnalyticsOverview } from "../api";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
+// This type defines the data shape for language.
 type Language = "en" | "fr" | "ar";
 
+// This type defines the data shape for props.
 type Props = {
   token: string;
   language: Language;
 };
 
-const PIE_COLORS = ["#0f172a", "#f59e0b", "#0f766e", "#7c3aed", "#dc2626"];
+// This component renders the pie colors UI.
+const PIE_COLORS = ["#0916a3", "#214dff", "#6ea8ff", "#0f2f7a", "#7b8fb8"];
 
+// This component renders the copy UI.
 const COPY = {
   en: {
     title: "Reports",
@@ -73,29 +77,30 @@ const COPY = {
     failed: "Echec du chargement des rapports",
   },
   ar: {
-    title: "التقارير",
-    subtitle: "إجماليات واتجاهات تلقائية مبنية على الوثائق الحقيقية.",
-    loading: "جار تحميل التحليلات...",
-    amount: "المبلغ",
-    today: "اليوم",
-    week: "هذا الأسبوع",
-    month: "هذا الشهر",
-    all: "إجمالي كل المدة",
-    last7Days: "آخر 7 أيام",
-    byType: "حسب نوع الوثيقة",
-    byCategory: "حسب الفئة",
-    scope: "النطاق",
-    personal: "الوثائق الشخصية",
-    room: "وثائق الغرف",
-    documents: "عدد الوثائق",
-    rooms: "عدد الغرف",
-    topSuppliers: "أكثر الموردين نشاطا",
-    noSupplierActivity: "لا يوجد نشاط للموردين بعد.",
-    docs: "وثائق",
-    failed: "فشل تحميل التقارير",
+    title: "Reports",
+    subtitle: "Automatic totals and trends based on real documents.",
+    loading: "Loading analytics...",
+    amount: "Amount",
+    today: "Today",
+    week: "This week",
+    month: "This month",
+    all: "All time",
+    last7Days: "Last 7 days",
+    byType: "By document type",
+    byCategory: "By category",
+    scope: "Scope",
+    personal: "Personal documents",
+    room: "Room documents",
+    documents: "Total documents",
+    rooms: "Rooms touched",
+    topSuppliers: "Top suppliers",
+    noSupplierActivity: "No supplier activity yet.",
+    docs: "documents",
+    failed: "Failed to load reports",
   },
 } as const;
 
+// This function runs.
 function money(value: number) {
   return new Intl.NumberFormat("fr-MA", {
     style: "currency",
@@ -103,17 +108,24 @@ function money(value: number) {
   }).format(value || 0);
 }
 
+// This component renders the reports UI.
 export function Reports({ token, language }: Props) {
-  const copy = useMemo(() => COPY[language], [language]);
+  // This memoized value keeps the computed copy result.
+  const copy = useMemo(() => COPY[language === "ar" ? "en" : language], [language]);
+  // This variable stores the data value.
   const [data, setData] = useState<AnalyticsOverview | null>(null);
+  // This variable stores the error value.
   const [error, setError] = useState<string | null>(null);
+  // This state stores the current loading value.
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     getAnalyticsOverview(token)
-      .then((response) => setData(response))
+      .then((response) => {
+        setData(response);
+      })
       .catch((loadError) => {
         setError(loadError instanceof Error ? loadError.message : copy.failed);
       })
@@ -194,8 +206,8 @@ export function Reports({ token, language }: Props) {
                 <AreaChart data={data.last7Days}>
                   <defs>
                     <linearGradient id="boonArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.04} />
+                      <stop offset="0%" stopColor="#214dff" stopOpacity={0.45} />
+                      <stop offset="100%" stopColor="#214dff" stopOpacity={0.04} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.22)" />
@@ -205,7 +217,7 @@ export function Reports({ token, language }: Props) {
                   <Area
                     type="monotone"
                     dataKey="amount"
-                    stroke="#f59e0b"
+                    stroke="#0916a3"
                     strokeWidth={2}
                     fill="url(#boonArea)"
                   />
@@ -226,7 +238,7 @@ export function Reports({ token, language }: Props) {
                     <XAxis dataKey="type" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip formatter={(value) => [money(Number(value)), copy.amount]} />
-                    <Bar dataKey="amount" fill="#f59e0b" radius={[10, 10, 0, 0]} />
+                    <Bar dataKey="amount" fill="#0916a3" radius={[10, 10, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
