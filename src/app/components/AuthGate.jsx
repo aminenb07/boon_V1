@@ -1,64 +1,10 @@
+
 import { useMemo, useState } from "react";
 import boonLogo from "../../assets/boon.png";
-import type { AuthResponse, Role, VerificationResponse } from "../api";
 import { login, register, resendVerificationCode, verifyPhone } from "../api";
 
-// This type defines the data shape for language.
-type Language = "en" | "fr" | "ar";
-
-// This type defines the data shape for props.
-type Props = {
-  language: Language;
-  onAuthenticated: (auth: AuthResponse) => void;
-};
-
-// This type defines the data shape for auth mode.
-type AuthMode = "login" | "register" | "verify";
-
-// This type defines the data shape for copy shape.
-type CopyShape = {
-  badge: string;
-  headline: string;
-  description: string;
-  login: string;
-  register: string;
-  verify: string;
-  identifier: string;
-  identifierPlaceholder: string;
-  fullName: string;
-  fullNamePlaceholder: string;
-  phone: string;
-  phonePlaceholder: string;
-  email: string;
-  emailPlaceholder: string;
-  password: string;
-  passwordPlaceholder: string;
-  confirmPassword: string;
-  confirmPasswordPlaceholder: string;
-  role: string;
-  verificationCode: string;
-  verificationCodePlaceholder: string;
-  verificationHint: string;
-  verificationSent: string;
-  registerNotice: string;
-  resendNotice: string;
-  signIn: string;
-  createAccount: string;
-  verifyAndContinue: string;
-  resendCode: string;
-  loading: string;
-  passwordMismatch: string;
-  authFailed: string;
-  createFailed: string;
-  verifyFailed: string;
-  resendFailed: string;
-  roleOwner: string;
-  roleWorker: string;
-  roleSupplier: string;
-};
-
 // This component renders the copy UI.
-const COPY: Record<Language, CopyShape> = {
+const COPY = {
   en: {
     badge: "BOON",
     headline: "Secure invoice rooms for construction teams",
@@ -188,10 +134,10 @@ const COPY: Record<Language, CopyShape> = {
 };
 
 // This function runs verification payload.
-function extractVerificationPayload(error: unknown): VerificationResponse | null {
+function extractVerificationPayload(error) {
   if (!(error instanceof Error)) return null;
   // This variable stores the payload value.
-  const payload = (error as Error & { payload?: Record<string, unknown> }).payload;
+  const payload = error.payload;
   if (!payload || payload.verificationRequired !== true) return null;
 
   return {
@@ -204,11 +150,11 @@ function extractVerificationPayload(error: unknown): VerificationResponse | null
 }
 
 // This component renders the auth gate UI.
-export function AuthGate({ language, onAuthenticated }: Props) {
+export function AuthGate({ language, onAuthenticated }) {
   // This memoized value keeps the computed copy result.
   const copy = useMemo(() => COPY[language], [language]);
   // This variable stores the mode value.
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [mode, setMode] = useState("login");
   // This state stores the current identifier value.
   const [identifier, setIdentifier] = useState("");
   // This state stores the current phone value.
@@ -222,27 +168,27 @@ export function AuthGate({ language, onAuthenticated }: Props) {
   // This state stores the current full name value.
   const [fullName, setFullName] = useState("");
   // This variable stores the role value.
-  const [role, setRole] = useState<Role>("SUPPLIER");
+  const [role, setRole] = useState("SUPPLIER");
   // This variable stores the verification value.
-  const [verification, setVerification] = useState<VerificationResponse | null>(null);
+  const [verification, setVerification] = useState(null);
   // This state stores the current code value.
   const [code, setCode] = useState("");
   // This variable stores the error value.
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   // This variable stores the notice value.
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState(null);
   // This state stores the current loading value.
   const [loading, setLoading] = useState(false);
 
   // This variable stores the role options value.
-  const roleOptions: Array<{ value: Role; label: string }> = [
+  const roleOptions = [
     { value: "OWNER", label: copy.roleOwner },
     { value: "WORKER", label: copy.roleWorker },
     { value: "SUPPLIER", label: copy.roleSupplier },
   ];
 
   // This function handles login.
-  async function handleLogin(event: React.FormEvent) {
+  async function handleLogin(event) {
     event.preventDefault();
     setError(null);
     setNotice(null);
@@ -271,7 +217,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
   }
 
   // This function handles register.
-  async function handleRegister(event: React.FormEvent) {
+  async function handleRegister(event) {
     event.preventDefault();
     setError(null);
     setNotice(null);
@@ -310,7 +256,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
   }
 
   // This function handles verify.
-  async function handleVerify(event: React.FormEvent) {
+  async function handleVerify(event) {
     event.preventDefault();
     if (!phone || !code) return;
 
@@ -355,7 +301,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
     ? `${copy.verificationHint} ${verification.maskedPhone}`
     : null;
   // This variable stores the auth modes value.
-  const authModes = ["login", "register"] as AuthMode[];
+  const authModes = ["login", "register"];
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 text-foreground">
@@ -388,7 +334,7 @@ export function AuthGate({ language, onAuthenticated }: Props) {
                   setNotice(null);
                 }}
               >
-                {value === "login" ? copy.login : value === "register" ? copy.register : copy.verify}
+                {value === "login" ? copy.login : copy.register}
               </button>
             ))}
           </div>
@@ -594,3 +540,4 @@ export function AuthGate({ language, onAuthenticated }: Props) {
     </div>
   );
 }
+

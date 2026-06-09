@@ -1,3 +1,4 @@
+
 import {
   ArrowRight,
   BadgeCheck,
@@ -9,29 +10,8 @@ import {
   Store,
   Users,
 } from "lucide-react";
-import type { Role } from "../api";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
-
-type DashboardProps = {
-  role: Role;
-  fullName: string;
-  onAddExpense: () => void;
-  onCreateProject: () => void;
-  canAddExpense?: boolean;
-  canCreateProject?: boolean;
-  addExpenseLabel?: string;
-  createProjectLabel?: string;
-};
-
-type HomeAction = {
-  label: string;
-  description: string;
-  icon: typeof ReceiptText;
-  primary?: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-};
 
 const ROLE_HOME = {
   OWNER: {
@@ -79,7 +59,7 @@ const ROLE_HOME = {
       "Export or share the document",
     ],
   },
-} as const;
+};
 
 function getActions({
   role,
@@ -89,16 +69,7 @@ function getActions({
   canCreateProject,
   addExpenseLabel,
   createProjectLabel,
-}: Pick<
-  DashboardProps,
-  | "role"
-  | "onAddExpense"
-  | "onCreateProject"
-  | "canAddExpense"
-  | "canCreateProject"
-  | "addExpenseLabel"
-  | "createProjectLabel"
->): HomeAction[] {
+}) {
   if (role === "OWNER") {
     return [
       {
@@ -167,7 +138,7 @@ export function Dashboard({
   canCreateProject = true,
   addExpenseLabel = "Send Boon",
   createProjectLabel = "Open Rooms",
-}: DashboardProps) {
+}) {
   const home = ROLE_HOME[role];
   const actions = getActions({
     role,
@@ -274,3 +245,4 @@ export function Dashboard({
     </div>
   );
 }
+

@@ -1,28 +1,10 @@
+
 /**
  * API REST Client - Wrappers for all API endpoints
  *
- * This file provides type-safe functions to call the BOON backend API,
+ * This file provides functions to call the BOON backend API,
  * plus utilities for authentication token handling and refresh.
  */
-import type {
-  AnalyticsOverview,
-  AuthResponse,
-  AuthUser,
-  CreateDocumentInput,
-  DocumentRecord,
-  JoinRoomResponse,
-  Role,
-  RoomDetails,
-  RoomJoinRequest,
-  RoomMember,
-  RoomStatus,
-  RoomSummary,
-  SharePayload,
-  SupplierProfile,
-  SupplierUser,
-  VerificationResponse,
-  WorkerSupplierLink,
-} from "./api";
 
 /** Default API base URL for browser environments */
 const browserDefaultApiBase =
@@ -54,45 +36,33 @@ function resolveApiBase() {
 /** Base URL for API requests */
 export const API_BASE = resolveApiBase();
 
-/** Shape of error responses from the API */
-type ApiErrorPayload = Record<string, unknown> & {
-  error?: string;
-};
-
-/** Handlers for managing auth state in the app */
-type AuthSessionHandlers = {
-  getAuth: () => AuthResponse | null;
-  saveAuth: (auth: AuthResponse) => void;
-  clearAuth: () => void;
-};
-
-let authSessionHandlers: AuthSessionHandlers | null = null;
-let refreshPromise: Promise<AuthResponse | null> | null = null;
+let authSessionHandlers = null;
+let refreshPromise = null;
 
 /** Configure auth session handlers for token refresh */
-export function configureAuthSessionHandlers(handlers: AuthSessionHandlers | null) {
+export function configureAuthSessionHandlers(handlers) {
   authSessionHandlers = handlers;
 }
 
 /**
- * Makes a type-safe API request, with automatic token refresh on 401
+ * Makes an API request, with automatic token refresh on 401
  */
-export async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {},
-  token?: string | null,
+export async function apiRequest(
+  path,
+  options = {},
+  token,
   retryOnUnauthorized = true,
-): Promise<T> {
-  const headers: HeadersInit = {
+) {
+  const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
   };
 
   if (token) {
-    (headers as Record<string, string>).Authorization = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
 
-  let response: Response;
+  let response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
       ...options,
@@ -105,37 +75,37 @@ export async function apiRequest<T>(
   }
 
   if (response.status === 204) {
-    return undefined as T;
+    return undefined;
   }
 
   const isJson = response.headers.get("content-type")?.includes("application/json");
   const payload = isJson
-    ? ((await response.json()) as ApiErrorPayload)
+    ? (await response.json())
     : null;
 
   if (!response.ok) {
     if (response.status === 401 && token && retryOnUnauthorized) {
       const refreshedAuth = await refreshStoredAuth(token);
       if (refreshedAuth) {
-        return apiRequest<T>(path, options, refreshedAuth.token, false);
+        return apiRequest(path, options, refreshedAuth.token, false);
       }
     }
 
     const error = new Error(
       payload?.error || `Request failed (${response.status})`,
-    ) as Error & { payload?: ApiErrorPayload };
-    error.payload = payload || undefined;
+    );
+    error.payload = payload;
     throw error;
   }
 
-  return payload as T;
+  return payload;
 }
 
 /**
  * Refreshes auth tokens using the stored refresh token
  * Prevents multiple concurrent refresh requests
  */
-async function refreshStoredAuth(failedToken: string): Promise<AuthResponse | null> {
+async function refreshStoredAuth(failedToken) {
   if (!authSessionHandlers) return null;
 
   const currentAuth = authSessionHandlers.getAuth();
@@ -169,23 +139,23 @@ async function refreshStoredAuth(failedToken: string): Promise<AuthResponse | nu
 }
 
 /** Get a URL for viewing a document's PDF with auth token */
-export function restGetDocumentPdfUrl(documentId: string, token: string) {
+export function restGetDocumentPdfUrl(documentId, token) {
   const encoded = encodeURIComponent(token);
   return `${API_BASE}/documents/${documentId}/pdf?token=${encoded}`;
 }
 
 /** Get a URL for a room's stream endpoint */
-export function restGetRoomStreamUrl(roomId: string, token: string) {
+export function restGetRoomStreamUrl(roomId, token) {
   const encoded = encodeURIComponent(token);
   return `${API_BASE}/rooms/${roomId}/stream?token=${encoded}`;
 }
 
 /** Subscribe to room document updates with polling */
 export function restSubscribeRoomDocuments(
-  token: string,
-  roomId: string,
-  onDocuments: (documents: DocumentRecord[]) => void,
-  onError?: (error: Error) => void,
+  token,
+  roomId,
+  onDocuments,
+  onError,
 ) {
   if (typeof window === "undefined") {
     return () => undefined;
@@ -218,14 +188,8 @@ export function restSubscribeRoomDocuments(
 // AUTH ENDPOINTS
 // ==========================================
 
-export async function restRegister(payload: {
-  phone: string;
-  email?: string;
-  password: string;
-  fullName: string;
-  role: Role;
-}) {
-  return apiRequest<VerificationResponse & { user: AuthUser }>(
+export async function restRegister(payload) {
+  return apiRequest(
     "/auth/register",
     {
       method: "POST",
@@ -235,8 +199,8 @@ export async function restRegister(payload: {
   );
 }
 
-export async function restLogin(payload: { identifier: string; password: string }) {
-  return apiRequest<AuthResponse>(
+export async function restLogin(payload) {
+  return apiRequest(
     "/auth/login",
     {
       method: "POST",
@@ -246,8 +210,8 @@ export async function restLogin(payload: { identifier: string; password: string 
   );
 }
 
-export async function restRefreshAuth(refreshToken: string) {
-  return apiRequest<AuthResponse>(
+export async function restRefreshAuth(refreshToken) {
+  return apiRequest(
     "/auth/refresh",
     {
       method: "POST",
@@ -258,8 +222,8 @@ export async function restRefreshAuth(refreshToken: string) {
   );
 }
 
-export async function restVerifyPhone(payload: { phone: string; code: string }) {
-  return apiRequest<AuthResponse>(
+export async function restVerifyPhone(payload) {
+  return apiRequest(
     "/auth/verify-phone",
     {
       method: "POST",
@@ -269,8 +233,8 @@ export async function restVerifyPhone(payload: { phone: string; code: string }) 
   );
 }
 
-export async function restResendVerificationCode(payload: { phone: string }) {
-  return apiRequest<VerificationResponse>(
+export async function restResendVerificationCode(payload) {
+  return apiRequest(
     "/auth/resend-code",
     {
       method: "POST",
@@ -284,15 +248,15 @@ export async function restResendVerificationCode(payload: { phone: string }) {
 // USER & PROFILE ENDPOINTS
 // ==========================================
 
-export async function restGetMe(token: string) {
-  return apiRequest<AuthUser>("/me", {}, token);
+export async function restGetMe(token) {
+  return apiRequest("/me", {}, token);
 }
 
 export async function restUpdateMe(
-  token: string,
-  payload: { fullName: string; email?: string | null },
+  token,
+  payload,
 ) {
-  return apiRequest<AuthUser>(
+  return apiRequest(
     "/me/profile",
     {
       method: "PUT",
@@ -303,10 +267,10 @@ export async function restUpdateMe(
 }
 
 export async function restChangeMyPassword(
-  token: string,
-  payload: { currentPassword: string; newPassword: string },
+  token,
+  payload,
 ) {
-  return apiRequest<void>(
+  return apiRequest(
     "/me/password",
     {
       method: "PUT",
@@ -320,32 +284,32 @@ export async function restChangeMyPassword(
 // ROOM ENDPOINTS
 // ==========================================
 
-export async function restListRooms(token: string) {
-  return apiRequest<RoomSummary[]>("/rooms", {}, token);
+export async function restListRooms(token) {
+  return apiRequest("/rooms", {}, token);
 }
 
 export async function restListRoomsWithFilters(
-  token: string,
-  params?: { search?: string; filter?: "all" | "active" | "closed" },
+  token,
+  params,
 ) {
   const query = new URLSearchParams();
   if (params?.search?.trim()) query.set("search", params.search.trim());
   if (params?.filter) query.set("filter", params.filter);
   const suffix = query.toString() ? `?${query.toString()}` : "";
-  return apiRequest<RoomSummary[]>(`/rooms${suffix}`, {}, token);
+  return apiRequest(`/rooms${suffix}`, {}, token);
 }
 
-export async function restGetRoomDetails(token: string, roomId: string) {
-  return apiRequest<RoomDetails>(`/rooms/${roomId}`, {}, token);
+export async function restGetRoomDetails(token, roomId) {
+  return apiRequest(`/rooms/${roomId}`, {}, token);
 }
 
-export async function restSearchSuppliers(token: string, query?: string) {
+export async function restSearchSuppliers(token, query) {
   const suffix = query ? `?q=${encodeURIComponent(query)}` : "";
-  return apiRequest<SupplierUser[]>(`/users/suppliers${suffix}`, {}, token);
+  return apiRequest(`/users/suppliers${suffix}`, {}, token);
 }
 
-export async function restCreateRoom(token: string, name: string) {
-  return apiRequest<RoomSummary>(
+export async function restCreateRoom(token, name) {
+  return apiRequest(
     "/rooms",
     {
       method: "POST",
@@ -355,8 +319,8 @@ export async function restCreateRoom(token: string, name: string) {
   );
 }
 
-export async function restJoinRoom(token: string, roomCode: string) {
-  return apiRequest<JoinRoomResponse>(
+export async function restJoinRoom(token, roomCode) {
+  return apiRequest(
     "/rooms/join",
     {
       method: "POST",
@@ -366,16 +330,16 @@ export async function restJoinRoom(token: string, roomCode: string) {
   );
 }
 
-export async function restListJoinRequests(token: string) {
-  return apiRequest<RoomJoinRequest[]>("/join-requests", {}, token);
+export async function restListJoinRequests(token) {
+  return apiRequest("/join-requests", {}, token);
 }
 
 export async function restDecideJoinRequest(
-  token: string,
-  requestId: string,
-  decision: "accept" | "refuse",
+  token,
+  requestId,
+  decision,
 ) {
-  return apiRequest<RoomJoinRequest>(
+  return apiRequest(
     `/join-requests/${requestId}/decision`,
     {
       method: "POST",
@@ -386,11 +350,11 @@ export async function restDecideJoinRequest(
 }
 
 export async function restUpdateRoomStatus(
-  token: string,
-  roomId: string,
-  status: RoomStatus,
+  token,
+  roomId,
+  status,
 ) {
-  return apiRequest<{ id: string; status: RoomStatus; name: string; roomCode: string }>(
+  return apiRequest(
     `/rooms/${roomId}/status`,
     {
       method: "PUT",
@@ -400,12 +364,12 @@ export async function restUpdateRoomStatus(
   );
 }
 
-export async function restListRoomMembers(token: string, roomId: string) {
-  return apiRequest<RoomMember[]>(`/rooms/${roomId}/members`, {}, token);
+export async function restListRoomMembers(token, roomId) {
+  return apiRequest(`/rooms/${roomId}/members`, {}, token);
 }
 
-export async function restRemoveRoomMember(token: string, roomId: string, userId: string) {
-  return apiRequest<void>(
+export async function restRemoveRoomMember(token, roomId, userId) {
+  return apiRequest(
     `/rooms/${roomId}/members/${userId}`,
     {
       method: "DELETE",
@@ -414,8 +378,8 @@ export async function restRemoveRoomMember(token: string, roomId: string, userId
   );
 }
 
-export async function restMarkRoomRead(token: string, roomId: string) {
-  return apiRequest<void>(
+export async function restMarkRoomRead(token, roomId) {
+  return apiRequest(
     `/rooms/${roomId}/read`,
     {
       method: "POST",
@@ -429,12 +393,12 @@ export async function restMarkRoomRead(token: string, roomId: string) {
 // ==========================================
 
 export async function restLinkSupplier(
-  token: string,
-  roomId: string,
-  workerId: string,
-  supplierId: string,
+  token,
+  roomId,
+  workerId,
+  supplierId,
 ) {
-  return apiRequest<WorkerSupplierLink>(
+  return apiRequest(
     `/rooms/${roomId}/workers/${workerId}/link-supplier`,
     {
       method: "POST",
@@ -445,11 +409,11 @@ export async function restLinkSupplier(
 }
 
 export async function restAddSupplierToRoom(
-  token: string,
-  roomId: string,
-  supplierId: string,
+  token,
+  roomId,
+  supplierId,
 ) {
-  return apiRequest<WorkerSupplierLink>(
+  return apiRequest(
     `/rooms/${roomId}/suppliers`,
     {
       method: "POST",
@@ -460,11 +424,11 @@ export async function restAddSupplierToRoom(
 }
 
 export async function restUnlinkRoomSupplier(
-  token: string,
-  roomId: string,
-  supplierId: string,
+  token,
+  roomId,
+  supplierId,
 ) {
-  return apiRequest<void>(
+  return apiRequest(
     `/rooms/${roomId}/suppliers/${supplierId}`,
     {
       method: "DELETE",
@@ -474,54 +438,46 @@ export async function restUnlinkRoomSupplier(
 }
 
 export async function restListWorkerSuppliers(
-  token: string,
-  roomId: string,
-  filters?: { workerId?: string; supplierId?: string },
+  token,
+  roomId,
+  filters,
 ) {
   const query = new URLSearchParams();
   if (filters?.workerId) query.set("workerId", filters.workerId);
   if (filters?.supplierId) query.set("supplierId", filters.supplierId);
   const suffix = query.toString() ? `?${query.toString()}` : "";
-  return apiRequest<WorkerSupplierLink[]>(
+  return apiRequest(
     `/rooms/${roomId}/worker-suppliers${suffix}`,
     {},
     token,
   );
 }
 
-export async function restListMyWorkerSuppliers(token: string, roomId: string) {
-  return apiRequest<WorkerSupplierLink[]>(
+export async function restListMyWorkerSuppliers(token, roomId) {
+  return apiRequest(
     `/rooms/${roomId}/worker-suppliers/me`,
     {},
     token,
   );
 }
 
-export async function restListRoomSuppliers(token: string, roomId: string) {
-  return apiRequest<WorkerSupplierLink[]>(
+export async function restListRoomSuppliers(token, roomId) {
+  return apiRequest(
     `/rooms/${roomId}/suppliers`,
     {},
     token,
   );
 }
 
-export async function restGetSupplierProfile(token: string) {
-  return apiRequest<SupplierProfile | null>("/supplier/profile", {}, token);
+export async function restGetSupplierProfile(token) {
+  return apiRequest("/supplier/profile", {}, token);
 }
 
 export async function restUpsertSupplierProfile(
-  token: string,
-  payload: {
-    logoUrl?: string;
-    storeName: string;
-    phone: string;
-    address: string;
-    ice?: string;
-    rc?: string;
-    footerNote?: string;
-  },
+  token,
+  payload,
 ) {
-  return apiRequest<SupplierProfile>(
+  return apiRequest(
     "/supplier/profile",
     {
       method: "PUT",
@@ -535,8 +491,8 @@ export async function restUpsertSupplierProfile(
 // DOCUMENT ENDPOINTS
 // ==========================================
 
-export async function restCreateDocument(token: string, payload: CreateDocumentInput) {
-  return apiRequest<DocumentRecord>(
+export async function restCreateDocument(token, payload) {
+  return apiRequest(
     "/documents",
     {
       method: "POST",
@@ -547,11 +503,11 @@ export async function restCreateDocument(token: string, payload: CreateDocumentI
 }
 
 export async function restCreateRoomDocument(
-  token: string,
-  roomId: string,
-  payload: Omit<CreateDocumentInput, "roomId" | "isPersonal">,
+  token,
+  roomId,
+  payload,
 ) {
-  return apiRequest<DocumentRecord>(
+  return apiRequest(
     `/rooms/${roomId}/documents`,
     {
       method: "POST",
@@ -561,19 +517,19 @@ export async function restCreateRoomDocument(
   );
 }
 
-export async function restListRoomDocuments(token: string, roomId: string) {
-  return apiRequest<DocumentRecord[]>(`/rooms/${roomId}/documents`, {}, token);
+export async function restListRoomDocuments(token, roomId) {
+  return apiRequest(`/rooms/${roomId}/documents`, {}, token);
 }
 
-export async function restListPersonalDocuments(token: string) {
-  return apiRequest<DocumentRecord[]>("/documents/personal", {}, token);
+export async function restListPersonalDocuments(token) {
+  return apiRequest("/documents/personal", {}, token);
 }
 
 export async function restListMyDocuments(
-  token: string,
-  scope: "all" | "room" | "personal" = "personal",
+  token,
+  scope = "personal",
 ) {
-  return apiRequest<DocumentRecord[]>(
+  return apiRequest(
     `/me/documents?scope=${encodeURIComponent(scope)}`,
     {},
     token,
@@ -581,10 +537,10 @@ export async function restListMyDocuments(
 }
 
 export async function restCreateMyDocument(
-  token: string,
-  payload: Omit<CreateDocumentInput, "roomId" | "workerId" | "isPersonal">,
+  token,
+  payload,
 ) {
-  return apiRequest<DocumentRecord>(
+  return apiRequest(
     "/me/documents",
     {
       method: "POST",
@@ -594,12 +550,12 @@ export async function restCreateMyDocument(
   );
 }
 
-export async function restGetDocument(token: string, documentId: string) {
-  return apiRequest<DocumentRecord>(`/documents/${documentId}`, {}, token);
+export async function restGetDocument(token, documentId) {
+  return apiRequest(`/documents/${documentId}`, {}, token);
 }
 
-export async function restDeleteDocument(token: string, documentId: string) {
-  return apiRequest<void>(
+export async function restDeleteDocument(token, documentId) {
+  return apiRequest(
     `/documents/${documentId}`,
     {
       method: "DELETE",
@@ -608,12 +564,12 @@ export async function restDeleteDocument(token: string, documentId: string) {
   );
 }
 
-export async function restGetDocumentShare(token: string, documentId: string) {
-  return apiRequest<SharePayload>(`/documents/${documentId}/share`, {}, token);
+export async function restGetDocumentShare(token, documentId) {
+  return apiRequest(`/documents/${documentId}/share`, {}, token);
 }
 
-export async function restExportDocumentPdf(token: string, documentId: string) {
-  return apiRequest<{ documentId: string; pdfUrl: string }>(
+export async function restExportDocumentPdf(token, documentId) {
+  return apiRequest(
     `/documents/${documentId}/export-pdf`,
     { method: "POST" },
     token,
@@ -624,6 +580,7 @@ export async function restExportDocumentPdf(token: string, documentId: string) {
 // ANALYTICS ENDPOINTS
 // ==========================================
 
-export async function restGetAnalyticsOverview(token: string) {
-  return apiRequest<AnalyticsOverview>("/analytics/overview", {}, token);
+export async function restGetAnalyticsOverview(token) {
+  return apiRequest("/analytics/overview", {}, token);
 }
+

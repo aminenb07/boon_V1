@@ -1,3 +1,4 @@
+
 /**
  * BOON App - Main Entry Component
  *
@@ -15,14 +16,11 @@ import {
   updateMe,
   upsertSupplierProfile,
 } from "./api";
-import type { AuthResponse, Role, SupplierProfile } from "./api";
 import { AuthGate } from "./components/AuthGate";
 import { BoonCenter } from "./components/BoonCenter";
 import { BottomNav, TAB_ICONS } from "./components/BottomNav";
-import type { BottomTabId } from "./components/BottomNav";
 import { Dashboard } from "./components/Dashboard";
 import { Profile } from "./components/Profile";
-import type { Language, ThemeMode } from "./components/Profile";
 import { Reports } from "./components/Reports";
 import { RoomLive } from "./components/RoomLive";
 import boonLogo from "../assets/boon.png";
@@ -307,14 +305,14 @@ const COPY = {
       storeProfileSaved: "تم حفظ ملف المتجر.",
     },
   },
-} as const;
+};
 
 /**
  * Tabs available to each user role
  * - Owners don't see the "Docs" tab since they manage rooms
  * - Workers & Suppliers see all tabs including Docs
  */
-const TABS_BY_ROLE: Record<Role, BottomTabId[]> = {
+const TABS_BY_ROLE = {
   OWNER: ["dashboard", "rooms", "reports", "profile"],
   WORKER: ["dashboard", "rooms", "boons", "reports", "profile"],
   SUPPLIER: ["dashboard", "rooms", "boons", "reports", "profile"],
@@ -323,11 +321,11 @@ const TABS_BY_ROLE: Record<Role, BottomTabId[]> = {
 /**
  * Read saved authentication state from localStorage
  */
-function readSavedAuth(): AuthResponse | null {
+function readSavedAuth() {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as AuthResponse;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
@@ -336,7 +334,7 @@ function readSavedAuth(): AuthResponse | null {
 /**
  * Persist authentication state to localStorage or clear it
  */
-function saveAuth(auth: AuthResponse | null) {
+function saveAuth(auth) {
   if (!auth) {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     return;
@@ -347,7 +345,7 @@ function saveAuth(auth: AuthResponse | null) {
 /**
  * Read saved language preference from localStorage
  */
-function readSavedLanguage(): Language {
+function readSavedLanguage() {
   const raw = localStorage.getItem(LANGUAGE_STORAGE_KEY);
   if (raw === "en" || raw === "fr" || raw === "ar") return raw;
   return "en";
@@ -356,7 +354,7 @@ function readSavedLanguage(): Language {
 /**
  * Read saved theme preference from localStorage
  */
-function readSavedTheme(): ThemeMode {
+function readSavedTheme() {
   const raw = localStorage.getItem(THEME_STORAGE_KEY);
   if (raw === "light" || raw === "dark" || raw === "system") return raw;
   return "system";
@@ -365,7 +363,7 @@ function readSavedTheme(): ThemeMode {
 /**
  * Resolve theme mode to actual "light" or "dark" value
  */
-function resolveTheme(mode: ThemeMode): "light" | "dark" {
+function resolveTheme(mode) {
   if (mode === "system") {
     return window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
@@ -377,14 +375,14 @@ function resolveTheme(mode: ThemeMode): "light" | "dark" {
 export default function App() {
   // App state
   const [booting, setBooting] = useState(true);
-  const [auth, setAuth] = useState<AuthResponse | null>(null);
-  const [language, setLanguage] = useState<Language>(readSavedLanguage);
-  const [themeMode, setThemeMode] = useState<ThemeMode>(readSavedTheme);
-  const [activeTab, setActiveTab] = useState<BottomTabId>("dashboard");
+  const [auth, setAuth] = useState(null);
+  const [language, setLanguage] = useState(readSavedLanguage);
+  const [themeMode, setThemeMode] = useState(readSavedTheme);
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   // UI feedback state
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState(null);
+  const [error, setError] = useState(null);
 
   // Loading states
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -392,8 +390,8 @@ export default function App() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Additional data
-  const [supplierProfile, setSupplierProfile] = useState<SupplierProfile | null>(null);
-  const authRef = useRef<AuthResponse | null>(null); // To access latest auth in callbacks without dependency issues
+  const [supplierProfile, setSupplierProfile] = useState(null);
+  const authRef = useRef(null); // To access latest auth in callbacks without dependency issues
 
   // Computed values
   const copy = COPY[language];
@@ -490,7 +488,7 @@ export default function App() {
   /**
    * Handle successful authentication (register/login/verify)
    */
-  function onAuthenticated(nextAuth: AuthResponse) {
+  function onAuthenticated(nextAuth) {
     setAuth(nextAuth);
     saveAuth(nextAuth);
     setNotice(null);
@@ -512,7 +510,7 @@ export default function App() {
   /**
    * Update user's profile information
    */
-  async function handleSaveProfile(payload: { fullName: string; email?: string | null }) {
+  async function handleSaveProfile(payload) {
     if (!auth) return;
     setError(null);
     setNotice(null);
@@ -533,15 +531,7 @@ export default function App() {
   /**
    * Update supplier's store profile information
    */
-  async function handleSaveStoreProfile(payload: {
-    storeName: string;
-    phone: string;
-    address: string;
-    ice?: string;
-    rc?: string;
-    footerNote?: string;
-    logoUrl?: string;
-  }) {
+  async function handleSaveStoreProfile(payload) {
     if (!auth || auth.user.role !== "SUPPLIER") return;
     setError(null);
     setNotice(null);
@@ -560,11 +550,7 @@ export default function App() {
   /**
    * Update user's password
    */
-  async function handleChangePassword(payload: {
-    currentPassword: string;
-    newPassword: string;
-    confirmPassword: string;
-  }) {
+  async function handleChangePassword(payload) {
     if (!auth) return;
     if (payload.newPassword !== payload.confirmPassword) {
       setNotice(null);
@@ -718,9 +704,10 @@ export default function App() {
         onTabChange={(tab) => {
           setNotice(null);
           setError(null);
-          setActiveTab(tab as BottomTabId);
+          setActiveTab(tab);
         }}
       />
     </div>
   );
 }
+
