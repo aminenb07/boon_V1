@@ -10,7 +10,7 @@
 const browserDefaultApiBase =
   typeof window !== "undefined"
     ? `${window.location.origin.replace(/\/$/, "")}/api`
-    : "http://localhost:4000/api";
+    : "http://localhost:8000/api";
 
 /** Configured API base from Vite environment variables */
 const configuredApiBase =

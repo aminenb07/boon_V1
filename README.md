@@ -38,7 +38,7 @@ cd backend
 composer install
 php artisan key:generate
 php artisan migrate
-php artisan serve --host=127.0.0.1 --port=4000
+php artisan serve --host=127.0.0.1 --port=8000
 ```
 
 If `php` is not installed globally, this repo also works with the local portable PHP copied into `.tools/php`:
@@ -48,10 +48,10 @@ cd backend
 ..\.tools\php\php.exe ..\.tools\composer.phar install
 ..\.tools\php\php.exe artisan key:generate
 ..\.tools\php\php.exe artisan migrate
-..\.tools\php\php.exe artisan serve --host=127.0.0.1 --port=4000
+..\.tools\php\php.exe artisan serve --host=127.0.0.1 --port=8000
 ```
 
-Backend runs at `http://127.0.0.1:4000`.
+Backend runs at `http://127.0.0.1:8000`.
 
 ## Environment
 
@@ -59,7 +59,7 @@ Frontend `.env`:
 
 ```bash
 VITE_APP_RUNTIME=rest
-VITE_API_BASE_URL=http://localhost:4000/api
+VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
 For a dev tunnel setup where the frontend runs on `https://grbhbht0-5173.uks1.devtunnels.ms` and the backend runs on `https://grbhbht0-8000.uks1.devtunnels.ms`, set:
@@ -73,14 +73,14 @@ Backend `.env` uses SQLite by default:
 ```bash
 DB_CONNECTION=sqlite
 DB_DATABASE=database/database.sqlite
-APP_URL=http://127.0.0.1:4000
+APP_URL=http://127.0.0.1:8000
 ```
 
 ## Quick checks
 
 - Frontend build: `npm run build`
 - Backend tests: `cd backend && php artisan test`
-- Backend health: `http://127.0.0.1:4000/api/health`
+- Backend health: `http://127.0.0.1:8000/api/health`
 
 Expected health response:
 
