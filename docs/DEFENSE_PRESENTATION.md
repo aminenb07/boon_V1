@@ -67,6 +67,14 @@ Scénario principal :
 5. Fournisseur crée un devis
 6. Téléchargement du PDF et partage
 
+Captures d'ecran a integrer dans les slides de demonstration :
+
+- Tableau de bord : `docs/screenshots/01-dashboard.png`
+- Rooms : `docs/screenshots/02-rooms.png`
+- Centre documents : `docs/screenshots/03-docs.png`
+- Rapports : `docs/screenshots/04-reports.png`
+- Parametres : `docs/screenshots/05-settings.png`
+
 ## 9. Difficultés rencontrées
 
 1. Difficulté : Authentification sécurisée avec refresh tokens

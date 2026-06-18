@@ -298,6 +298,14 @@ Voici un scénario d'utilisation typique de BOON :
    - Le devis est disponible pour Amine et Youssef.
    - "Matériaux Souss" télécharge le PDF et partage le lien via WhatsApp.
 
+### Captures d'ecran de l'application
+
+Les captures suivantes illustrent les principaux ecrans de BOON utilises pendant la demonstration :
+
+![Tableau de bord BOON](screenshots/01-dashboard.png)
+
+use all the Captures d'ecran like the first 
+
 ---
 
 ## 9. Difficultés Rencontrées et Solutions

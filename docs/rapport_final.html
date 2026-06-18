@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rapport Projet BOON - Gestion des Documents de Construction</title>
+    <link rel="stylesheet" href="report.css" />
+  </head>
+  <body>
+    <!-- Cover Page -->
+    <div class="page cover">
+      <div class="cover-content">
+        <div class="logos">
+          <div
+            style="
+              width: 120px;
+              height: 120px;
+              background: linear-gradient(135deg, #004aad 0%, #00a0e3 100%);
+              border-radius: 16px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 28px;
+            "
+          >
+            BOON
+          </div>
+          <div class="logo-ofppt-placeholder">OFPPT</div>
+        </div>
+        <h1 class="title">RAPPORT DE PROJET</h1>
+        <h2 class="subtitle">BOON - Gestion des Documents de Construction</h2>
+        <div class="author-section">
+          <p><strong>Par</strong> : Amine Nabou</p>
+          <p><strong>Promotion</strong> : DevOWFS 204</p>
+          <p><strong>Établissement</strong> : OFPPT</p>
+          <p><strong>Année</strong> : 2026</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table of Contents -->
+    <div class="page content-page">
+      <div class="container">
+        <h1>
+          Rapport de Projet : BOON - Gestion des Documents de Construction
+        </h1>
+        <h2>Table des Matières</h2>
+        <ol>
+          <li>Introduction</li>
+          <li>Contexte et Problématique</li>
+          <li>Objectifs du Projet</li>
+          <li>Fonctionnalités Principales</li>
+          <li>Architecture Technique</li>
+          <li>Conception et Modélisation</li>
+          <li>Réalisation</li>
+          <li>Démonstration et Captures d'Écran</li>
+          <li>Difficultés Rencontrées et Solutions</li>
+          <li>Résultats Obtenus</li>
+          <li>Perspectives d'Amélioration</li>
+          <li>Compétences Développées</li>
+          <li>Conclusion</li>
+        </ol>
+        <hr />
+
+        <h2 id="1-introduction">1. Introduction</h2>
+        <p>
+          BOON est une application web collaborative dédiée à la gestion des
+          documents dans le secteur du BTP (Bâtiment et Travaux Publics). Elle
+          permet aux propriétaires de chantiers, aux ouvriers et aux
+          fournisseurs de centraliser, partager et gérer les documents clés
+          (bons de commande, factures, devis) dans des espaces de travail
+          virtuels appelés "rooms". L'application a été développée en utilisant
+          une architecture moderne et sécurisée, combinant React en frontend et
+          Laravel en backend pour offrir une expérience utilisateur optimale.
+        </p>
+        <hr />
+
+        <h2 id="2-contexte-et-problématique">2. Contexte et Problématique</h2>
+        <p>
+          Dans le secteur du BTP, la gestion des documents est souvent effectuée
+          manuellement ou via des outils peu adaptés, ce qui cause plusieurs
+          problèmes majeurs :
+        </p>
+        <ul>
+          <li>
+            <strong>Perte de documents</strong> : Gestion papier risquée et sans
+            sauvegarde digitale.
+          </li>
+          <li>
+            <strong>Manque de traçabilité</strong> : Impossible de suivre
+            l'historique des modifications et des partages.
+          </li>
+          <li>
+            <strong>Communication compliquée</strong> : Coordination difficile
+            entre les différents acteurs (propriétaires, ouvriers,
+            fournisseurs).
+          </li>
+          <li>
+            <strong>Erreurs humaines</strong> : Saisie incorrecte, duplications,
+            et gestion inefficace des documents.
+          </li>
+          <li>
+            <strong>Manque de centralisation</strong> : Documents éparpillés sur
+            plusieurs supports et plateformes.
+          </li>
+        </ul>
+        <h3>Problématique Centrale</h3>
+        <p>
+          <em
+            ><strong
+              >Comment simplifier et centraliser la gestion des documents de
+              construction pour améliorer la collaboration entre les acteurs
+              d'un chantier ?</strong
+            ></em
+          >
+        </p>
+        <hr />
+
+        <h2 id="3-objectifs-du-projet">3. Objectifs du Projet</h2>
+        <p>Les objectifs fixés pour ce projet sont :</p>
+        <ol>
+          <li>
+            <strong>Centraliser les documents</strong> : Stocker tous les
+            documents dans un seul endroit sécurisé et accessible.
+          </li>
+          <li>
+            <strong>Améliorer la collaboration</strong> : Permettre aux acteurs
+            de partager des documents rapidement et de manière sécurisée.
+          </li>
+          <li>
+            <strong>Générer des PDFs automatiquement</strong> : Offrir des
+            documents professionnels prêts à être partagés sans intervention
+            manuelle.
+          </li>
+          <li>
+            <strong>Gestion des rôles</strong> : Contrôler l'accès aux
+            informations selon le rôle de l'utilisateur (propriétaire, ouvrier,
+            fournisseur).
+          </li>
+          <li>
+            <strong>Suivi analytique</strong> : Donner un aperçu des dépenses et
+            des documents pour faciliter la prise de décision.
+          </li>
+        </ol>
+        <hr />
+
+        <h2 id="4-fonctionnalités-principales">
+          4. Fonctionnalités Principales
+        </h2>
+        <p>
+          BOON propose un ensemble riche de fonctionnalités conçues pour
+          répondre aux besoins des acteurs du BTP :
+        </p>
+
+        <h3>4.1 Gestion des Utilisateurs et Authentification</h3>
+        <ul>
+          <li>
+            Inscription avec numéro de téléphone et vérification par code
+            SMS/OTP.
+          </li>
+          <li>
+            Connexion sécurisée via identifiants (téléphone/mot de passe).
+          </li>
+          <li>
+            Gestion des tokens d'accès (15 min) et de rafraîchissement (30
+            jours).
+          </li>
+          <li>
+            Support pour trois rôles différents : OWNER, WORKER, SUPPLIER.
+          </li>
+        </ul>
+
+        <h3>4.2 Gestion des Rooms (Salles de Chantier)</h3>
+        <ul>
+          <li>Création de rooms par le propriétaire du chantier.</li>
+          <li>
+            Code de room unique et facile à partager pour inviter d'autres
+            utilisateurs.
+          </li>
+          <li>
+            Système de demandes d'adhésion pour les ouvriers avec approbation du
+            propriétaire.
+          </li>
+          <li>
+            Approbation/rejet des demandes d'adhésion par le propriétaire.
+          </li>
+          <li>Gestion du statut de la room (active/fermée).</li>
+          <li>Suivi de la dernière activité dans chaque room.</li>
+        </ul>
+
+        <h3>4.3 Gestion des Documents</h3>
+        <ul>
+          <li>
+            Création de trois types de documents : bon de commande, facture,
+            devis.
+          </li>
+          <li>
+            Deux types de visibilité :
+            <ul>
+              <li>
+                <strong>Personnels</strong> : Visibles seulement par le
+                fournisseur créateur.
+              </li>
+              <li>
+                <strong>Partagés</strong> : Visibles dans une room par les
+                acteurs concernés.
+              </li>
+            </ul>
+          </li>
+          <li>
+            Ajout flexible d'articles avec nom, quantité et prix unitaire.
+          </li>
+          <li>Support du montant rapide si pas d'articles détaillés.</li>
+          <li>Attachement de pièces jointes (photos, fichiers PDF, etc.).</li>
+          <li>
+            Génération automatique de PDF professionnel avec données du
+            fournisseur.
+          </li>
+        </ul>
+
+        <h3>4.4 Lien Ouvrier - Fournisseur</h3>
+        <ul>
+          <li>Les ouvriers peuvent lier des fournisseurs à une room.</li>
+          <li>
+            Visibilité contrôlée : les ouvriers voient seulement les documents
+            des fournisseurs qu'ils ont liés.
+          </li>
+          <li>Gestion flexible des liens (activation/désactivation).</li>
+        </ul>
+
+        <h3>4.5 Profil Fournisseur</h3>
+        <ul>
+          <li>
+            Gestion complète du profil professionnel (nom du magasin, téléphone,
+            adresse, ICE, RC).
+          </li>
+          <li>
+            Personnalisation du logo et note de pied de page pour les PDFs.
+          </li>
+          <li>Historique des activités et des documents créés.</li>
+        </ul>
+
+        <h3>4.6 Tableau de Bord et Analytics</h3>
+        <ul>
+          <li>Vue d'ensemble des montants totaux dépensés.</li>
+          <li>
+            Détails par type de document (bon de commande, facture, devis).
+          </li>
+          <li>Détails par catégorie de dépenses.</li>
+          <li>Top des fournisseurs par montant.</li>
+          <li>Historique des 7 derniers jours pour suivi des tendances.</li>
+        </ul>
+
+        <h3>4.7 Partage des Documents</h3>
+        <ul>
+          <li>Génération de liens temporaires signés valides 7 jours.</li>
+          <li>
+            Partage direct via WhatsApp avec prévisualisation du document.
+          </li>
+          <li>Sécurité garantie avec expiration des liens.</li>
+        </ul>
+        <hr />
+
+        <h2 id="5-architecture-technique">5. Architecture Technique</h2>
+        <h3>5.1 Stack Technique</h3>
+        <p>
+          BOON utilise une architecture <strong>3 tiers</strong> (frontend,
+          backend, base de données) avec les technologies suivantes :
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Couche</th>
+              <th>Technologies</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Frontend</strong></td>
+              <td>React 19, JavaScript ES6+, Tailwind CSS, Vite</td>
+            </tr>
+            <tr>
+              <td><strong>Backend</strong></td>
+              <td>Laravel 12, PHP 8.x, REST API</td>
+            </tr>
+            <tr>
+              <td><strong>Base de données</strong></td>
+              <td>MySQL 8.0+</td>
+            </tr>
+            <tr>
+              <td><strong>Outils supplémentaires</strong></td>
+              <td>
+                barryvdh/laravel-dompdf (génération PDF), Git (gestion de
+                versions), Tailwind CSS
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>5.2 Diagramme d'Architecture</h3>
+        <pre><code>┌─────────────────┐         HTTP/REST        ┌──────────────────┐
+│  React Frontend │  ──────────────────────► │  Laravel Backend │
+│   (src/)        │  ◄────────────────────── │   (backend/)     │
+│                 │     JSON Response       │                  │
+└─────────────────┘                          └────────┬─────────┘
+        │                                             │
+        │ Tailwind CSS                                │ Laravel ORM
+        │ Vite Build                                  │ Query Builder
+        │                                             │
+        └─────────────────────────────────────────────┼──────────┐
+                                                      │          │
+                                             ┌────────▼─────┐    │
+                                             │ MySQL         │    │
+                                             │ Database      │    │
+                                             └───────────────┘    │
+                                                                  │
+                                              DOMPDF Generator ──┘
+                                              (PDF Generation)</code></pre>
+        <hr />
+
+        <h2 id="6-conception-et-modélisation">6. Conception et Modélisation</h2>
+        <h3>6.1 Diagramme de Cas d'Utilisation</h3>
+        <p>Les principaux cas d'utilisation sont :</p>
+        <h4>Acteur : Propriétaire</h4>
+        <ul>
+          <li>Créer une room pour un chantier</li>
+          <li>Voir les demandes d'adhésion des ouvriers</li>
+          <li>Approuver ou rejeter les demandes</li>
+          <li>Gérer les membres de la room</li>
+          <li>Voir tous les documents de la room</li>
+          <li>Consulter les analytics et les dépenses</li>
+        </ul>
+
+        <h4>Acteur : Ouvrier</h4>
+        <ul>
+          <li>S'inscrire et se connecter</li>
+          <li>Rejoindre une room via le code</li>
+          <li>Lier un fournisseur à une room</li>
+          <li>Voir les documents des fournisseurs liés</li>
+          <li>Gérer son profil utilisateur</li>
+        </ul>
+
+        <h4>Acteur : Fournisseur</h4>
+        <ul>
+          <li>S'inscrire et se connecter</li>
+          <li>Créer/Modifier son profil professionnel</li>
+          <li>Créer des documents personnels</li>
+          <li>Créer des documents dans une room</li>
+          <li>Télécharger le PDF d'un document</li>
+          <li>Partager un document via WhatsApp ou lien temporaire</li>
+        </ul>
+
+        <h3>6.2 Modèle de Données Principal</h3>
+        <p>Le modèle de données comprend les tables suivantes :</p>
+
+        <h4>Table : users</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Colonne</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>id</code></td>
+              <td>UUID</td>
+              <td>Identifiant unique</td>
+            </tr>
+            <tr>
+              <td><code>phone</code></td>
+              <td>VARCHAR (Unique)</td>
+              <td>Numéro de téléphone</td>
+            </tr>
+            <tr>
+              <td><code>email</code></td>
+              <td>VARCHAR (Nullable)</td>
+              <td>Adresse e-mail</td>
+            </tr>
+            <tr>
+              <td><code>password_hash</code></td>
+              <td>VARCHAR</td>
+              <td>Mot de passe haché</td>
+            </tr>
+            <tr>
+              <td><code>full_name</code></td>
+              <td>VARCHAR</td>
+              <td>Nom complet</td>
+            </tr>
+            <tr>
+              <td><code>default_role</code></td>
+              <td>ENUM</td>
+              <td>Rôle : OWNER, WORKER, SUPPLIER</td>
+            </tr>
+            <tr>
+              <td><code>status</code></td>
+              <td>ENUM</td>
+              <td>Statut : ACTIVE, DISABLED</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>Table : rooms</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Colonne</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>id</code></td>
+              <td>UUID</td>
+              <td>Identifiant unique</td>
+            </tr>
+            <tr>
+              <td><code>name</code></td>
+              <td>VARCHAR</td>
+              <td>Nom de la room</td>
+            </tr>
+            <tr>
+              <td><code>room_code</code></td>
+              <td>VARCHAR (Unique)</td>
+              <td>Code unique pour rejoindre la room</td>
+            </tr>
+            <tr>
+              <td><code>status</code></td>
+              <td>ENUM</td>
+              <td>Statut : ACTIVE, CLOSED</td>
+            </tr>
+            <tr>
+              <td><code>owner_id</code></td>
+              <td>UUID (FK)</td>
+              <td>Propriétaire de la room</td>
+            </tr>
+            <tr>
+              <td><code>last_activity_at</code></td>
+              <td>TIMESTAMP</td>
+              <td>Date de la dernière activité</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>Table : documents</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Colonne</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>id</code></td>
+              <td>UUID</td>
+              <td>Identifiant unique</td>
+            </tr>
+            <tr>
+              <td><code>type</code></td>
+              <td>ENUM</td>
+              <td>Type : RECEIPT, INVOICE, QUOTE</td>
+            </tr>
+            <tr>
+              <td><code>room_id</code></td>
+              <td>UUID (FK, Nullable)</td>
+              <td>Room associée au document</td>
+            </tr>
+            <tr>
+              <td><code>supplier_id</code></td>
+              <td>UUID (FK)</td>
+              <td>Fournisseur créateur</td>
+            </tr>
+            <tr>
+              <td><code>grand_total</code></td>
+              <td>DECIMAL</td>
+              <td>Montant total du document</td>
+            </tr>
+            <tr>
+              <td><code>currency</code></td>
+              <td>VARCHAR</td>
+              <td>Devise (défaut: MAD)</td>
+            </tr>
+            <tr>
+              <td><code>is_personal</code></td>
+              <td>BOOLEAN</td>
+              <td>Visibilité personnelle ou partagée</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>6.3 Autres Tables Clés</h3>
+        <ul>
+          <li>
+            <code>api_tokens</code> : Gestion des tokens d'accès et de
+            rafraîchissement
+          </li>
+          <li>
+            <code>room_members</code> : Lien entre users et rooms avec rôle
+          </li>
+          <li>
+            <code>room_join_requests</code> : Demandes d'adhésion aux rooms
+          </li>
+          <li>
+            <code>worker_supplier_links</code> : Lien entre ouvriers et
+            fournisseurs dans une room
+          </li>
+          <li>
+            <code>supplier_store_profiles</code> : Profils professionnels des
+            fournisseurs
+          </li>
+          <li><code>document_items</code> : Articles/lignes des documents</li>
+          <li><code>attachments</code> : Pièces jointes des documents</li>
+          <li>
+            <code>phone_verification_codes</code> : Codes de vérification du
+            téléphone
+          </li>
+        </ul>
+
+        <h3>6.4 Diagrammes UML Visuels</h3>
+        <p>
+          Les diagrammes UML suivants modélisent l'architecture et les processus
+          de BOON :
+        </p>
+
+        <h4>Diagramme de Cas d'Utilisation</h4>
+        <div
+          style="page-break-inside: avoid; margin: 20px 0; text-align: center"
+        >
+          <img
+            src="uml/diagramme_cas_utilisation.svg"
+            alt="Diagramme de Cas d'Utilisation"
+            style="
+              max-width: 100%;
+              height: auto;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 10px;
+            "
+          />
+          <p style="font-size: 12px; color: #666; margin-top: 10px">
+            Figure 6.4.1 : Diagramme de Cas d'Utilisation montrant tous les
+            acteurs (Visiteur, Propriétaire, Ouvrier, Fournisseur) et leurs
+            interactions avec les fonctionnalités principales du système.
+          </p>
+        </div>
+
+        <h4>Diagramme de Classes</h4>
+        <div
+          style="page-break-inside: avoid; margin: 20px 0; text-align: center"
+        >
+          <img
+            src="uml/diagramme_classes.svg"
+            alt="Diagramme de Classes"
+            style="
+              max-width: 100%;
+              height: auto;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 10px;
+            "
+          />
+          <p style="font-size: 12px; color: #666; margin-top: 10px">
+            Figure 6.4.2 : Diagramme de Classes représentant les entités
+            principales (User, Room, Document) et leurs relations dans le modèle
+            objet de BOON.
+          </p>
+        </div>
+
+        <h4>Diagrammes de Séquence</h4>
+        <p>
+          Les diagrammes de séquence suivants décrivent les flux d'interaction
+          critiques du système :
+        </p>
+
+        <h5>1. Flux d'Authentification</h5>
+        <div
+          style="page-break-inside: avoid; margin: 20px 0; text-align: center"
+        >
+          <img
+            src="uml/sequence_1_authentification.svg"
+            alt="Séquence d'Authentification"
+            style="
+              max-width: 100%;
+              height: auto;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 10px;
+            "
+          />
+          <p style="font-size: 12px; color: #666; margin-top: 10px">
+            Figure 6.4.3 : Séquence d'authentification montrant l'échange entre
+            l'utilisateur, l'application frontend et le serveur backend pour la
+            connexion sécurisée.
+          </p>
+        </div>
+
+        <h5>2. Flux de Gestion de Room pour Ouvrier</h5>
+        <div
+          style="page-break-inside: avoid; margin: 20px 0; text-align: center"
+        >
+          <img
+            src="uml/sequence_2_room_ouvrier.svg"
+            alt="Séquence Room Ouvrier"
+            style="
+              max-width: 100%;
+              height: auto;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 10px;
+            "
+          />
+          <p style="font-size: 12px; color: #666; margin-top: 10px">
+            Figure 6.4.4 : Séquence de gestion de room pour un ouvrier, incluant
+            la recherche et l'adhésion à une room via un code.
+          </p>
+        </div>
+
+        <h5>3. Flux de Liaison Fournisseur</h5>
+        <div
+          style="page-break-inside: avoid; margin: 20px 0; text-align: center"
+        >
+          <img
+            src="uml/sequence_3_liaison_fournisseur.svg"
+            alt="Séquence Liaison Fournisseur"
+            style="
+              max-width: 100%;
+              height: auto;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 10px;
+            "
+          />
+          <p style="font-size: 12px; color: #666; margin-top: 10px">
+            Figure 6.4.5 : Séquence de liaison d'un fournisseur à une room,
+            permettant à un ouvrier d'ajouter et gérer les fournisseurs.
+          </p>
+        </div>
+
+        <h5>4. Flux de Génération et Partage de Document PDF</h5>
+        <div
+          style="page-break-inside: avoid; margin: 20px 0; text-align: center"
+        >
+          <img
+            src="uml/sequence_4_bon_pdf.svg"
+            alt="Séquence Document PDF"
+            style="
+              max-width: 100%;
+              height: auto;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 10px;
+            "
+          />
+          <p style="font-size: 12px; color: #666; margin-top: 10px">
+            Figure 6.4.6 : Séquence de création et génération de document PDF,
+            incluant la conversion et le partage via différents canaux.
+          </p>
+        </div>
+
+        <hr />
+
+        <h2 id="7-réalisation">7. Réalisation</h2>
+        <h3>7.1 Backend (Laravel)</h3>
+        <p>Le backend est structuré de manière modulaire et scalable :</p>
+        <ul>
+          <li>
+            <strong>Controllers</strong> : Traitement des requêtes API
+            <ul>
+              <li>
+                <code>BoonAuthController</code> : Authentification, inscription,
+                vérification, tokens
+              </li>
+              <li>
+                <code>BoonRoomController</code> : Gestion des rooms et des
+                membres
+              </li>
+              <li>
+                <code>BoonDocumentController</code> : Gestion des documents et
+                génération PDF
+              </li>
+              <li>
+                <code>BoonSupplierController</code> : Gestion des fournisseurs
+                et liens
+              </li>
+              <li>
+                <code>BoonAnalyticsController</code> : Statistiques et analyses
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Models</strong> : Eloquent ORM pour User, DB Query Builder
+            pour le reste
+          </li>
+          <li>
+            <strong>Middleware</strong> :
+            <ul>
+              <li>
+                <code>BoonAuthenticate</code> : Vérification du token d'accès
+              </li>
+              <li><code>BoonRequireRole</code> : Vérification des rôles</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Support</strong> : <code>BoonApiSupport</code> trait avec
+            toute la logique métier
+          </li>
+          <li>
+            <strong>Views</strong> : Template Blade pour la génération de PDF
+          </li>
+        </ul>
+
+        <h3>7.2 Frontend (React)</h3>
+        <p>Le frontend est organisé en composants réutilisables :</p>
+        <ul>
+          <li>
+            <strong>Components Principaux</strong>:
+            <ul>
+              <li>
+                <code>AuthGate</code> : Gestion de l'authentification et
+                vérification du rôle
+              </li>
+              <li><code>Dashboard</code> : Page d'accueil avec statistiques</li>
+              <li>
+                <code>RoomLive</code> : Vue détaillée d'une room et de ses
+                documents
+              </li>
+              <li>
+                <code>BoonCenter</code> : Espace personnel des documents du
+                fournisseur
+              </li>
+              <li>
+                <code>Profile</code> : Gestion du profil utilisateur et
+                fournisseur
+              </li>
+              <li>
+                <code>Reports</code> : Analytics et visualisation des données
+              </li>
+              <li><code>BottomNav</code> : Navigation mobile-friendly</li>
+            </ul>
+          </li>
+          <li>
+            <strong>API Management</strong>:
+            <ul>
+              <li><code>api.js</code> : Couche d'abstraction API</li>
+              <li><code>api-rest.js</code> : Requêtes HTTP brutes</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Styles</strong> : Tailwind CSS avec support:
+            <ul>
+              <li>Thème clair/sombre</li>
+              <li>Responsive design</li>
+              <li>Support RTL pour Arabic</li>
+            </ul>
+          </li>
+        </ul>
+        <hr />
+
+        <h2 id="8-démonstration">8. Démonstration et Captures d'Écran</h2>
+        <h3>8.1 Scénario Typique d'Utilisation</h3>
+        <p>
+          <strong>Scénario :</strong> Gestion d'un chantier appelé "Villa
+          Agadir"
+        </p>
+        <ol>
+          <li>
+            <strong>Inscription et Vérification</strong>
+            <ul>
+              <li>
+                Amine (propriétaire) s'inscrit avec son numéro de téléphone.
+              </li>
+              <li>Il reçoit un code de vérification et valide son compte.</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Création d'une Room</strong>
+            <ul>
+              <li>Amine crée une room appelée "Chantier Villa Agadir".</li>
+              <li>Il obtient un code unique : "VIL-ABC123".</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Adhésion de l'Ouvrier</strong>
+            <ul>
+              <li>Youssef (ouvrier) s'inscrit et se connecte.</li>
+              <li>Il rejoint la room en utilisant le code "VIL-ABC123".</li>
+              <li>Amine approuve la demande d'adhésion de Youssef.</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Liaison du Fournisseur</strong>
+            <ul>
+              <li>
+                Youssef recherche et lie le fournisseur "Matériaux Souss".
+              </li>
+              <li>"Matériaux Souss" est automatiquement ajouté à la room.</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Création d'un Devis</strong>
+            <ul>
+              <li>
+                "Matériaux Souss" crée un devis pour des ciments et briques.
+              </li>
+              <li>
+                Il ajoute les articles : 50 sacs de ciment (250 MAD chaque),
+                1000 briques (1 MAD chaque).
+              </li>
+              <li>Total : 13500 MAD.</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Téléchargement et Partage</strong>
+            <ul>
+              <li>
+                Le devis est visible pour Amine, Youssef et "Matériaux Souss".
+              </li>
+              <li>
+                "Matériaux Souss" télécharge le PDF avec son logo et ses
+                informations.
+              </li>
+              <li>Il partage le lien via WhatsApp avec Amine et Youssef.</li>
+            </ul>
+          </li>
+        </ol>
+
+        <h3>8.2 Captures d'Écran de l'Application</h3>
+        <p>
+          Les captures suivantes illustrent les principaux écrans et
+          fonctionnalités de BOON :
+        </p>
+
+        <div style="page-break-inside: avoid; margin-bottom: 30px">
+          <h4>Authentification</h4>
+          <img
+            src="screenshots/09-login.png"
+            alt="Page de Connexion"
+            style="
+              max-width: 100%;
+              margin: 15px 0;
+              border-radius: 8px;
+              box-shadow: 0 4px 15px rgba(0, 74, 173, 0.15);
+            "
+          />
+          <p>
+            <strong>Page de Connexion :</strong> Interface de connexion
+            sécurisée pour les utilisateurs existants. Les utilisateurs peuvent
+            se connecter avec leur numéro de téléphone et leur mot de passe. La
+            page offre une interface clean et intuitive avec support RTL.
+          </p>
+        </div>
+
+        <div style="page-break-inside: avoid; margin-bottom: 30px">
+          <img
+            src="screenshots/10-register.png"
+            alt="Page d'Inscription"
+            style="
+              max-width: 100%;
+              margin: 15px 0;
+              border-radius: 8px;
+              box-shadow: 0 4px 15px rgba(0, 74, 173, 0.15);
+            "
+          />
+          <p>
+            <strong>Page d'Inscription :</strong> Formulaire d'inscription
+            permettant aux nouveaux utilisateurs de créer un compte avec
+            vérification du numéro de téléphone par code OTP. Le processus est
+            sécurisé et simple.
+          </p>
+        </div>
+
+        <div style="page-break-inside: avoid; margin-bottom: 30px">
+          <h4>Tableau de Bord et Gestion</h4>
+          <img
+            src="screenshots/01-dashboard.png"
+            alt="Tableau de Bord Principal"
+            style="
+              max-width: 100%;
+              margin: 15px 0;
+              border-radius: 8px;
+              box-shadow: 0 4px 15px rgba(0, 74, 173, 0.15);
+            "
+          />
+          <p>
+            <strong>Tableau de Bord :</strong> Vue d'ensemble du système avec
+            les statistiques principales. Affiche les montants totaux, les
+            documents récents, et permet une navigation rapide vers les
+            différentes sections (rooms, documents, analytics). Interface
+            responsive et mobile-friendly.
+          </p>
+        </div>
+
+        <div style="page-break-inside: avoid; margin-bottom: 30px">
+          <img
+            src="screenshots/03-rooms.png"
+            alt="Gestion des Rooms"
+            style="
+              max-width: 100%;
+              margin: 15px 0;
+              border-radius: 8px;
+              box-shadow: 0 4px 15px rgba(0, 74, 173, 0.15);
+            "
+          />
+          <p>
+            <strong>Gestion des Rooms :</strong> Liste des rooms avec code
+            d'accès, statut et dernière activité. Les propriétaires peuvent
+            créer de nouvelles rooms, voir les demandes d'adhésion et gérer les
+            membres. Interface intuitive pour faciliter la gestion des
+            chantiers.
+          </p>
+        </div>
+
+        <div style="page-break-inside: avoid; margin-bottom: 30px">
+          <img
+            src="screenshots/04-room-feed.png"
+            alt="Fil d'Activité d'une Room"
+            style="
+              max-width: 100%;
+              margin: 15px 0;
+              border-radius: 8px;
+              box-shadow: 0 4px 15px rgba(0, 74, 173, 0.15);
+            "
+          />
+          <p>
+            <strong>Fil d'Activité de la Room :</strong> Vue détaillée d'une
+            room avec tous les documents partagés, les membres connectés et
+            l'historique d'activité. Les utilisateurs peuvent voir qui a créé
+            quel document et quand. Système de notification pour rester informé.
+          </p>
+        </div>
+
+        <div style="page-break-inside: avoid; margin-bottom: 30px">
+          <h4>Documents et Partage</h4>
+          <img
+            src="screenshots/08-showDoc.png"
+            alt="Affichage d'un Document"
+            style="
+              max-width: 100%;
+              margin: 15px 0;
+              border-radius: 8px;
+              box-shadow: 0 4px 15px rgba(0, 74, 173, 0.15);
+            "
+          />
+          <p>
+            <strong>Visualisation d'un Document :</strong> Affichage détaillé
+            d'un document avec tous les articles, le montant total, les pièces
+            jointes et les options de partage. Les utilisateurs peuvent
+            télécharger le PDF, partager via WhatsApp ou générer un lien
+            temporaire signé.
+          </p>
+        </div>
+
+        <div style="page-break-inside: avoid; margin-bottom: 30px">
+          <h4>Analytics et Rapports</h4>
+          <img
+            src="screenshots/04-analyses.png"
+            alt="Page Analytics"
+            style="
+              max-width: 100%;
+              margin: 15px 0;
+              border-radius: 8px;
+              box-shadow: 0 4px 15px rgba(0, 74, 173, 0.15);
+            "
+          />
+          <p>
+            <strong>Analytics et Rapports :</strong> Tableau de bord analytique
+            complet avec graphiques, statistiques par type de document, par
+            catégorie, et top des fournisseurs. Historique des 7 derniers jours
+            pour suivre les tendances de dépenses. Aide à la prise de décision.
+          </p>
+        </div>
+
+        <div style="page-break-inside: avoid; margin-bottom: 30px">
+          <h4>Profil et Paramètres</h4>
+          <img
+            src="screenshots/05-settings.png"
+            alt="Page des Paramètres"
+            style="
+              max-width: 100%;
+              margin: 15px 0;
+              border-radius: 8px;
+              box-shadow: 0 4px 15px rgba(0, 74, 173, 0.15);
+            "
+          />
+          <p>
+            <strong>Paramètres et Profil :</strong> Gestion du profil
+            utilisateur et des paramètres de compte. Les fournisseurs peuvent
+            gérer leur profil professionnel (logo, nom du magasin, ICE, RC,
+            adresse). Les utilisateurs peuvent modifier leurs informations et
+            gérer leurs préférences.
+          </p>
+        </div>
+        <hr />
+
+        <h2 id="9-difficultés-rencontrées-et-solutions">
+          9. Difficultés Rencontrées et Solutions
+        </h2>
+        <h3>9.1 Authentification Sécurisée</h3>
+        <ul>
+          <li>
+            <strong>Problème :</strong> Gérer des sessions sécurisées sans
+            utiliser Laravel Sanctum ou Passport.
+          </li>
+          <li>
+            <strong>Solution :</strong> Mise en place d'un système personnalisé
+            avec :
+            <ul>
+              <li>Tokens d'accès (15 min) pour les requêtes courantes</li>
+              <li>
+                Tokens de rafraîchissement (30 jours) pour renouveler l'accès
+              </li>
+              <li>Stockage sécurisé dans la table <code>api_tokens</code></li>
+              <li>Hachage des mots de passe avec Laravel Hash facade</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h3>9.2 Génération PDF Responsive</h3>
+        <ul>
+          <li>
+            <strong>Problème :</strong> Générer des PDFs professionnels avec les
+            données du fournisseur et les articles sans outils externes coûteux.
+          </li>
+          <li>
+            <strong>Solution :</strong>
+            <ul>
+              <li>
+                Utilisation de la bibliothèque
+                <code>barryvdh/laravel-dompdf</code>
+              </li>
+              <li>
+                Template Blade personnalisé
+                (<code>resources/views/pdf/document.blade.php</code>)
+              </li>
+              <li>CSS spécifique pour l'impression et le PDF</li>
+              <li>Intégration du logo et des informations du fournisseur</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h3>9.3 Gestion des Droits d'Accès par Rôle</h3>
+        <ul>
+          <li>
+            <strong>Problème :</strong> Contrôler qui peut voir/faire quoi dans
+            l'application selon le rôle.
+          </li>
+          <li>
+            <strong>Solution :</strong>
+            <ul>
+              <li>
+                Middleware <code>BoonRequireRole</code> vérifiant le rôle avant
+                chaque requête protégée
+              </li>
+              <li>
+                Logique métier dans <code>BoonApiSupport</code> pour filtrer les
+                documents visibles
+              </li>
+              <li>Vérification à multiple niveaux (middleware + métier)</li>
+              <li>
+                Trois rôles clairs : OWNER (propriétaire), WORKER (ouvrier),
+                SUPPLIER (fournisseur)
+              </li>
+            </ul>
+          </li>
+        </ul>
+
+        <h3>9.4 Traçabilité des Activités</h3>
+        <ul>
+          <li>
+            <strong>Problème :</strong> Savoir qui a fait quoi et quand dans une
+            room.
+          </li>
+          <li>
+            <strong>Solution :</strong>
+            <ul>
+              <li>
+                Mise à jour automatique du champ
+                <code>last_activity_at</code> de la room
+              </li>
+              <li>
+                Enregistrement de <code>last_activity_preview</code> avec
+                description lisible
+              </li>
+              <li>Timestamps automatiques pour chaque document créé/modifié</li>
+              <li>Historique visible dans le fil d'activité de la room</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h3>9.5 Support Multi-Langue et RTL</h3>
+        <ul>
+          <li>
+            <strong>Problème :</strong> Supporter l'arabe avec layout RTL et
+            traductions.
+          </li>
+          <li>
+            <strong>Solution :</strong>
+            <ul>
+              <li>Tailwind CSS avec classe <code>dir="rtl"</code></li>
+              <li>Flexbox et Grid responsive</li>
+              <li>Logique côté frontend pour basculer entre LTR et RTL</li>
+              <li>Interface intuitive dans les deux langues</li>
+            </ul>
+          </li>
+        </ul>
+        <hr />
+
+        <h2 id="10-résultats-obtenus">10. Résultats Obtenus</h2>
+        <p>
+          À l'issue du développement, les résultats suivants ont été atteints :
+        </p>
+        <ol>
+          <li>
+            <strong>MVP Fonctionnel et Complet</strong> : Toutes les
+            fonctionnalités principales sont implémentées et directement
+            utilisables en production.
+          </li>
+          <li>
+            <strong>Code Bien Organisé</strong> : Architecture claire et
+            modulaire avec séparation nette entre frontend/backend, facilitant
+            la maintenance et l'évolution.
+          </li>
+          <li>
+            <strong>Sécurité Robuste</strong> :
+            <ul>
+              <li>Authentification sécurisée avec tokens</li>
+              <li>Hachage des mots de passe</li>
+              <li>Vérification des droits d'accès par rôle</li>
+              <li>Validation des entrées</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Expérience Utilisateur Optimale</strong> :
+            <ul>
+              <li>Interface intuitive et clean</li>
+              <li>Responsive design pour tous les écrans</li>
+              <li>Support RTL pour Arabic</li>
+              <li>Navigation mobile-friendly</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Tests Réalisés et Validés</strong> : Testé avec succès pour
+            les trois rôles (propriétaire, ouvrier, fournisseur) avec des
+            scénarios réels.
+          </li>
+        </ol>
+        <hr />
+
+        <h2 id="11-perspectives-d-amélioration">
+          11. Perspectives d'Amélioration
+        </h2>
+        <p>
+          Pour continuer à améliorer BOON et augmenter sa valeur, plusieurs
+          pistes sont envisageables :
+        </p>
+        <ol>
+          <li>
+            <strong>Déploiement Cloud</strong> : Héberger l'application sur un
+            service cloud (Render, AWS, DigitalOcean, etc.) pour qu'elle soit
+            accessible en ligne 24/7.
+          </li>
+          <li>
+            <strong>Notifications Push</strong> : Avertir les utilisateurs en
+            temps réel des nouveaux documents, demandes d'adhésion ou
+            changements importants.
+          </li>
+          <li>
+            <strong>Mode Hors Ligne</strong> : Permettre de créer des documents
+            sans connexion internet, avec synchronisation automatique à la
+            reconnexion.
+          </li>
+          <li>
+            <strong>Historique Complet des Modifications</strong> : Garder une
+            trace détaillée de chaque modification de document avec qui a
+            modifié et quand.
+          </li>
+          <li>
+            <strong>Application Mobile Native</strong> : Créer une application
+            mobile iOS/Android pour une meilleure accessibilité sur les
+            chantiers (utiliser React Native ou Flutter).
+          </li>
+          <li>
+            <strong>Support Multi-Devise</strong> : Permettre de gérer plusieurs
+            devises (EUR, USD, GBP, etc.) avec conversion automatique.
+          </li>
+          <li>
+            <strong>Intégrations Externes</strong> : Intégrer avec d'autres
+            outils comptables populaires (QuickBooks, Sage, Wave, etc.) pour
+            synchroniser les données.
+          </li>
+          <li>
+            <strong>Gestion des Équipes</strong> : Permettre aux propriétaires
+            de créer des équipes et déléguer des responsabilités.
+          </li>
+          <li>
+            <strong>Signature Électronique</strong> : Ajouter la possibilité de
+            signer électroniquement les documents.
+          </li>
+          <li>
+            <strong>Appels Vidéo Intégrés</strong> : Communication directe entre
+            les acteurs sans quitter la plateforme.
+          </li>
+        </ol>
+        <hr />
+
+        <h2 id="12-compétences-développées">12. Compétences Développées</h2>
+        <p>
+          Ce projet a permis de développer et d'approfondir les compétences
+          professionnelles suivantes :
+        </p>
+        <ul>
+          <li>
+            <strong>Développement Full Stack</strong> : Maîtrise complète de
+            React + Laravel pour créer une application web complète.
+          </li>
+          <li>
+            <strong>Conception UML</strong> : Création de diagrammes
+            professionnels (classes, cas d'utilisation, séquence).
+          </li>
+          <li>
+            <strong>Gestion de Base de Données</strong> : Modélisation
+            relationnelle, migrations, requêtes SQL optimisées.
+          </li>
+          <li>
+            <strong>Sécurité Informatique</strong> : Authentification robuste,
+            gestion des droits, hachage de mots de passe.
+          </li>
+          <li>
+            <strong>Gestion de Versions</strong> : Maîtrise complète de Git et
+            des workflows collaboratifs.
+          </li>
+          <li>
+            <strong>UX/UI Design</strong> : Design d'interfaces responsives et
+            intuitive avec Tailwind CSS.
+          </li>
+          <li>
+            <strong>Résolution de Problèmes</strong> : Analyse approfondie des
+            défis techniques et trouvaille de solutions appropriées.
+          </li>
+          <li>
+            <strong>Architecture Logicielle</strong> : Conception
+            d'architectures modulaires, scalables et maintenables.
+          </li>
+          <li>
+            <strong>Génération PDF</strong> : Maîtrise des outils de génération
+            PDF dynamiques.
+          </li>
+          <li>
+            <strong>Support Multi-Langue</strong> : Implémentation du support
+            RTL et de l'internationalisation.
+          </li>
+        </ul>
+        <hr />
+
+        <h2 id="13-conclusion">13. Conclusion</h2>
+        <p>
+          <strong
+            >BOON est une réponse concrète et innovante aux problèmes de gestion
+            de documents dans le secteur du BTP.</strong
+          >
+          Grâce à son architecture moderne, ses fonctionnalités collaboratives
+          complètes et son interface intuitive, BOON permet aux acteurs d'un
+          chantier (propriétaires, ouvriers, fournisseurs) de travailler plus
+          efficacement et avec une meilleure traçabilité.
+        </p>
+        <p>
+          Le MVP est <strong>complet et fonctionnel</strong>, offrant toutes les
+          capacités essentielles pour gérer les documents de construction de
+          manière centralisée. L'application a été testée avec succès dans les
+          trois rôles principaux et démontre une expérience utilisateur fluide
+          et professionnelle.
+        </p>
+        <p>
+          De nombreuses améliorations et extensions sont possibles pour
+          augmenter la valeur du produit et améliorer continuellement
+          l'expérience utilisateur. Cette base solide permet d'envisager une
+          <strong>évolutivité à long terme</strong> et une adoption croissante
+          dans le secteur du BTP.
+        </p>
+        <p style="margin-top: 40px; font-style: italic">
+          <strong
+            >Avec BOON, la gestion des documents de construction entre dans
+            l'ère numérique.</strong
+          >
+        </p>
+        <hr />
+
+        <div style="margin-top: 50px; text-align: left; color: #666">
+          <p><strong>Auteur :</strong> Amine Nabou</p>
+          <p><strong>Promotion :</strong> DevOWFS 204</p>
+          <p>
+            <strong>Établissement :</strong> OFPPT (Office de la Formation
+            Professionnelle et de la Promotion du Travail)
+          </p>
+          <p><strong>Date :</strong> 2026</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
